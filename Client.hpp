@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:51 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/03 13:15:01 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/04 16:52:10 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,4 +22,8 @@ class Client
 	public:
 		Client(std::string ip, std::string uname, std::string nnname);
 		~Client();
+
+		const std::string getIP() const;
+		const std::string getUsername() const;
+		const std::string getNickname() const;
 };
