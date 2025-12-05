@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/04 17:33:50 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/05 15:38:28 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,7 +23,7 @@ void Server::signalServer(int sig)
 	}
 }
 
-Server::Server(char* port, std::string pswd) : _password(pswd)
+Server::Server(char* port, std::string pswd, std::string name) : _name(name), _password(pswd)
 {
 	if (this->verifInput(port))
 		return ;
@@ -117,12 +117,12 @@ int	Server::startServer()
 			close(this->_serverfd);
 			return 0;
 		}
-		std::cout<<"in loop"<<std::endl;
+		std::cout<<ORANGE<<"in loop"<<RST<<std::endl;
 		if (poll(&this->fds[0], this->fds.size(), -1) < 0)
 			std::cerr<<RED<<"poll error"<<RST<<std::endl;
 		time_t now = std::time(NULL);
-		std::cout<<this->fds.size()<<std::endl;
-		std::cout<<"time ping : "<<now - this->_lastPing<<std::endl;
+		std::cout<<BOLDWHITE<<this->fds.size()<<RST<<std::endl;
+		std::cout<<GREEN<<"time ping : "<<now - this->_lastPing<<RST<<std::endl;
 		if (now - this->_lastPing >= 30)
 		{
 			for (size_t j = 0; j < this->fds.size(); j++)
@@ -131,7 +131,7 @@ int	Server::startServer()
 				{
 					std::string ping = "PING :irc.serv\r\n";
 					send(this->fds[j].fd, ping.c_str(), ping.size(), 0);
-					std::cout<<"PING send to : "<<this->fds[j].fd<<std::endl;
+					std::cout<<GREEN<<"PING send to : "<<this->fds[j].fd<<RST<<std::endl;
 				}
 			}
 			this->_lastPing = now;
@@ -165,16 +165,16 @@ int	Server::startServer()
 						{
 							const std::string nname = newClient->getNickname();
 							const std::string uname = newClient->getUsername();
-							std::string m1 = ":irc42.serv 001 "+nname+" :Welcome to the Internet Relay Chat Network, "+nname+"! "+nname+"@host\r\n";
-							std::string m2 = ":irc42.serv 002 "+nname+" :Your host is irc42.serv, running version 1.0\r\n";
-							std::string m3 = ":irc42.serv 003 "+nname+" :This server was created Dec 4 2025\r\n";
-							std::string m4 = ":irc42.serv 004 "+nname+" irc42.serv 1.0 io i\r\n";
+							std::string m1 = this->_name + "001 "+nname+" :Welcome to the Internet Relay Chat Network, "+nname+"! "+nname+"@host\r\n";
+							std::string m2 = this->_name + "002 "+nname+" :Your host is" + this->_name + ", running version 1.0\r\n";
+							std::string m3 = this->_name + "003 "+nname+" :This server was created Dec 4 2025\r\n";
+							std::string m4 = this->_name + "004 "+nname+ this->_name + "1.0 io i\r\n";
 							std::cout<<YELLOW<<"Client: "<<newClient->getUsername()<<" accepted"<<RST<<std::endl;
 							send(c_fd, m1.c_str(), m1.size(), 0);
 							send(c_fd, m2.c_str(), m2.size(), 0);
 							send(c_fd, m3.c_str(), m3.size(), 0);
 							send(c_fd, m4.c_str(), m4.size(), 0);
-							this->_clients.push_back(newClient);
+							this->_clients.insert(std::make_pair(this->fds[i].fd, newClient));
 						}
 					}
 					this->fds.push_back((pollfd){c_fd, POLLIN, 0});
@@ -183,7 +183,7 @@ int	Server::startServer()
 				{
 					char buffer[1024];
 					int n = recv(this->fds[i].fd, buffer, sizeof(buffer), 0);
-					std::cout<<"Read : "<<buffer;
+					std::cout<<CYAN<<"Read : "<<buffer<<RST;
 					if (n <= 0)
 					{
 						std::cout << BOLDMAGENTA << "Client disconected : " << fds[i].fd << RST << std::endl;
@@ -197,24 +197,24 @@ int	Server::startServer()
 						std::string msg(buffer);
 						if (msg.rfind("PONG :myserver\r\n", 0) == 0)
 						{
-							std::cout<<"PONG from : "<<this->fds[i].fd<<std::endl;
+							std::cout<<GREEN<<"PONG from : "<<this->fds[i].fd<<RST<<std::endl;
 							continue;
 						}
-						else if (msg.rfind("PING :irc42.serv\r\n") == 0)
+						else if (msg.rfind("PING irc42.serv\r\n") == 0)
 						{
 							for (size_t j = 0; j < this->fds.size(); j++)
 							{
 								if (this->fds[j].fd != this->_serverfd)
 								{
-									std::string ping = "PONG :irc.serv\r\n";
+									std::string ping = "PONG :"+this->_name+"\r\n";
 									send(this->fds[j].fd, ping.c_str(), ping.size(), 0);
-									std::cout<<"PONG send to : "<<this->fds[j].fd<<std::endl;
+									std::cout<<GREEN<<"PONG send to : "<<this->fds[j].fd<<RST<<std::endl;
 								}
 							}
 							continue;
 						}
 						else if (msg.find("JOIN") == 0)
-							this->sendError(this->fds[i].fd, "403", "vduarte","#general", "No such channel");
+							channelJoin(this->fds[i].fd, msg);
 					}
 				}
 			}
@@ -222,11 +222,64 @@ int	Server::startServer()
 	}
 }
 
-void Server::sendError(int fd, std::string code, std::string fpm, std::string spm, std::string tpm) const
+Channel *Server::findChannel(std::string name)
 {
-	std::string error = ":irc42.serv "+code+" "+fpm+" "+spm+" :"+tpm+"\r\n";
-	send(fd, error.c_str(), error.size(), 0);
-	std::cerr<<BOLDRED<<"SERVER : Error send to client "<<fd<<" : "<<error<<RST<<std::endl;
+	std::map<std::string, Channel*>::iterator it = this->_channels.find(name);
+	if (it != this->_channels.end())
+		return it->second;
+	return nullptr;
+}
+
+void Server::channelJoin(int fd, std::string cmd)
+{
+	char		characters[4] = {'&', '#', '+', '!'};
+	size_t		dp_pos = cmd.find(':');
+	std::string ch_name = "";
+
+	if (dp_pos != std::string::npos)
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			char c = characters[i];
+			if (cmd[dp_pos + 1] == c)
+			{
+				size_t chname_end = cmd.find('\n', dp_pos);
+				if (chname_end == std::string::npos)
+					chname_end = cmd.find('\r', dp_pos);
+				if (chname_end != std::string::npos)
+				{
+					ch_name = cmd.substr(dp_pos + 1, chname_end - (dp_pos + 1));
+					break;
+				}
+			}
+		}
+		if (ch_name.size() != 0)
+		{
+			Channel* ch = findChannel(ch_name);
+			if (!ch)
+			{
+				//if (le user a les perms de faire de la magie)
+					//create channel
+				//else
+					//this->sendError(this->fds[0].fd, );
+				Channel *newCh = new Channel(ch_name, "topic", "Louvre123");
+				this->_channels.insert(std::make_pair(ch_name, newCh));
+			}
+			else
+			{
+				
+			}
+		}
+		// else renvoyer une erreur
+	}
+	// else renvoyer une erreur vers le client
+}
+
+void Server::sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const
+{
+	std::string msg = ":"+this->_name+" "+code+" "+uname+" "+spm+" :"+tpm+"\r\n";
+	send(fd, msg.c_str(), msg.size(), 0);
+	std::cerr<<BOLDWHITE<<"SERVER : Message send to client "<<fd<<" : "<<msg<<RST<<std::endl;
 }
 
 Server::~Server() {}

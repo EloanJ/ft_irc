@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:44:37 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/04 12:25:13 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/05 12:51:52 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ int main(int ac, char **av)
 	else
 	{
 		std::cout<<GREEN<<"Thanks to use our service !"<<RST<<std::endl;
-		Server _srv(av[1], "salut");
+		Server _srv(av[1], "salut", "irc42.serv");
 		_srv.startServer();
 	}
 }
