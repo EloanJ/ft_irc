@@ -24,7 +24,9 @@ class Channel
 		//char		_mode;
 		//int			_userlimit;
 		std::vector<Client*> _clients;
-	public:
+		//Selon noe on pourrait faire un autre vector de client mais ceux qui sont operator. Cela rend plus simple de savoir qui est OP sur tel ou tel chan.
+		//Donc n'importe qui peut faire /join et cree un chan si il existe pas et en devient +o, si il est deja cree il le rejoint normal et si il est sur invit-> error.
+		public:
 		Channel(std::string name, std::string topic, std::string password);
 		~Channel();
 };

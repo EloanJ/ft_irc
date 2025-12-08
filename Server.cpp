@@ -165,15 +165,17 @@ int	Server::startServer()
 						{
 							const std::string nname = newClient->getNickname();
 							const std::string uname = newClient->getUsername();
-							std::string m1 = this->_name + "001 "+nname+" :Welcome to the Internet Relay Chat Network, "+nname+"! "+nname+"@host\r\n";
-							std::string m2 = this->_name + "002 "+nname+" :Your host is" + this->_name + ", running version 1.0\r\n";
-							std::string m3 = this->_name + "003 "+nname+" :This server was created Dec 4 2025\r\n";
-							std::string m4 = this->_name + "004 "+nname+ this->_name + "1.0 io i\r\n";
+							std::string m1 = ":" + this->_name + " 001 "+nname+" :Welcome to the Internet Relay Chat Network, "+nname+"! "+nname+"@host\r\n";
+							std::string m2 = ":" + this->_name + " 002 "+nname+" :Your host is" + this->_name + ", running version 1.0\r\n";
+							std::string m3 = ":" + this->_name + " 003 "+nname+" :This server was created Dec 4 2025\r\n";
+							std::string m4 = ":" + this->_name + " 004 "+nname+ this->_name + "1.0 io i\r\n";
+							std::string m5 = ":" + this->_name + " 005 " + nname + " CHANTYPES=#\r\n";
 							std::cout<<YELLOW<<"Client: "<<newClient->getUsername()<<" accepted"<<RST<<std::endl;
 							send(c_fd, m1.c_str(), m1.size(), 0);
 							send(c_fd, m2.c_str(), m2.size(), 0);
 							send(c_fd, m3.c_str(), m3.size(), 0);
 							send(c_fd, m4.c_str(), m4.size(), 0);
+							send(c_fd, m5.c_str(), m5.size(), 0);
 							this->_clients.insert(std::make_pair(this->fds[i].fd, newClient));
 						}
 					}
@@ -227,7 +229,7 @@ Channel *Server::findChannel(std::string name)
 	std::map<std::string, Channel*>::iterator it = this->_channels.find(name);
 	if (it != this->_channels.end())
 		return it->second;
-	return nullptr;
+	return NULL;
 }
 
 void Server::channelJoin(int fd, std::string cmd)
@@ -235,6 +237,7 @@ void Server::channelJoin(int fd, std::string cmd)
 	char		characters[4] = {'&', '#', '+', '!'};
 	size_t		dp_pos = cmd.find(':');
 	std::string ch_name = "";
+	(void)fd;
 
 	if (dp_pos != std::string::npos)
 	{
@@ -258,16 +261,15 @@ void Server::channelJoin(int fd, std::string cmd)
 			Channel* ch = findChannel(ch_name);
 			if (!ch)
 			{
-				//if (le user a les perms de faire de la magie)
-					//create channel
-				//else
-					//this->sendError(this->fds[0].fd, );
 				Channel *newCh = new Channel(ch_name, "topic", "Louvre123");
 				this->_channels.insert(std::make_pair(ch_name, newCh));
 			}
 			else
 			{
-				
+				/* if il est pas sous invit only
+					join ch;
+				else
+					sendMSG(); */
 			}
 		}
 		// else renvoyer une erreur
