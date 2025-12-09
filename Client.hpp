@@ -19,11 +19,14 @@ class Client
 		std::string _ip;
 		std::string _username;
 		std::string _nickname;
+		bool		_authenticated;
 	public:
-		Client(std::string ip, std::string uname, std::string nnname);
+		Client(std::string ip, std::string uname, std::string nnname, bool auth);
 		~Client();
 
-		const std::string getIP() const;
-		const std::string getUsername() const;
-		const std::string getNickname() const;
+		const	std::string getIP() const;
+		const	std::string getUsername() const;
+		const	std::string getNickname() const;
+		void	setAuth(bool auth);
+		bool	isAuth() const;
 };

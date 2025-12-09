@@ -21,7 +21,7 @@ int main(int ac, char **av)
 	else
 	{
 		std::cout<<GREEN<<"Thanks to use our service !"<<RST<<std::endl;
-		Server _srv(av[1], "salut", "irc42.serv");
+		Server _srv(av[1], av[2], "irc42.serv");
 		_srv.startServer();
 	}
 }

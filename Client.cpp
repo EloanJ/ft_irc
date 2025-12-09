@@ -12,7 +12,7 @@
 
 #include "Client.hpp"
 
-Client::Client(std::string ip, std::string uname, std::string nname) : _ip(ip), _username(uname), _nickname(nname) {}
+Client::Client(std::string ip, std::string uname, std::string nname, bool auth) : _ip(ip), _username(uname), _nickname(nname), _authenticated(auth) {}
 
 const std::string Client::getUsername() const
 {
@@ -27,6 +27,16 @@ const std::string Client::getNickname() const
 const std::string Client::getIP() const
 {
 	return this->_ip;
+}
+
+void Client::setAuth(bool auth)
+{
+	this->_authenticated = auth;
+}
+
+bool Client::isAuth() const
+{
+	return this->_authenticated;
 }
 
 Client::~Client() {}

@@ -102,7 +102,7 @@ Client *Server::createNewClient(std::string msg)
 	}
 	std::cout<<BOLDWHITE<<"Nickname a partir de "<<st_nname<<" : "<<nickname<<RST<<std::endl;
 	std::cout<<BOLDWHITE<<"Username a partir de "<<st_uname<<" : "<<username<<RST<<std::endl;
-	Client* newClient = new Client("ip", username, nickname);
+	Client* newClient = new Client("ip", username, nickname, false);
 	return newClient;
 }
 
@@ -161,15 +161,22 @@ int	Server::startServer()
 						}
 						//std::cout<<"END OF CLIENT LOOP"<<std::endl;
 						Client* newClient = createNewClient(clientInfoTotal);
-						if (newClient != NULL)
+						if (newClient && !newClient->isAuth())
+						{
+							std:: string misspswd = ":" + this->_name +" 464 :Password Password required\r\n";
+							send(c_fd, misspswd.c_str(), misspswd.size(), 0);
+							//misspswd = ":" + this->_name +" 451 :You have not registered\r\n";
+							std::cout<<BOLDBLACK<<"error miss password send"<<RST<<std::endl;
+						}
+						else if (newClient)
 						{
 							const std::string nname = newClient->getNickname();
 							const std::string uname = newClient->getUsername();
-							std::string m1 = ":" + this->_name + " 001 "+nname+" :Welcome to the Internet Relay Chat Network, "+nname+"! "+nname+"@host\r\n";
-							std::string m2 = ":" + this->_name + " 002 "+nname+" :Your host is" + this->_name + ", running version 1.0\r\n";
+							std::string m1 = ":" + this->_name + " 001 "+nname+" :Welcome to the Internet Relay Chat Network, "+nname+"!"+nname+"@host\r\n";
+							std::string m2 = ":" + this->_name + " 002 "+nname+" :Your host is " + this->_name + ", running version 1.0\r\n";
 							std::string m3 = ":" + this->_name + " 003 "+nname+" :This server was created Dec 4 2025\r\n";
-							std::string m4 = ":" + this->_name + " 004 "+nname+ this->_name + "1.0 io i\r\n";
-							std::string m5 = ":" + this->_name + " 005 " + nname + " CHANTYPES=#\r\n";
+							std::string m4 = ":" + this->_name + " 004 "+nname+ " " + this->_name + " 1.0 itkol\r\n";
+							std::string m5 = ":" + this->_name + " 005 " + nname + " CHANTYPES=# CHANMODES=eIbq,k,flj,CFLMPQScgimnprstz PREFIX=(ov)@+ CASEMAPPING=ascii :are supported by this server\r\n";
 							std::cout<<YELLOW<<"Client: "<<newClient->getUsername()<<" accepted"<<RST<<std::endl;
 							send(c_fd, m1.c_str(), m1.size(), 0);
 							send(c_fd, m2.c_str(), m2.size(), 0);
@@ -217,6 +224,8 @@ int	Server::startServer()
 						}
 						else if (msg.find("JOIN") == 0)
 							channelJoin(this->fds[i].fd, msg);
+						else if (msg.find("PASS") == 0)
+							std::cout<<BOLDWHITE<<"client pass send"<<RST<<std::endl;
 					}
 				}
 			}
