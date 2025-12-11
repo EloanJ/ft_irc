@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/05 12:58:30 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/11 18:27:28 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,10 +41,11 @@ class Server
 		Server(char* port, std::string pswd, std::string name);
 		~Server();
 		int			verifInput(std::string port);
-		Client		*createNewClient(std::string msg);
 		int			startServer();
 		void		channelJoin(int fd, std::string cmd);
 		Channel		*findChannel(std::string name);
+		Client		*findClient(int fd);
+		void		msgBroadcast(int fd, std::string msg);
 		void		sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const;
 		static void signalServer(int sig);
 };

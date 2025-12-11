@@ -6,22 +6,13 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/05 15:38:28 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/11 18:38:21 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
 
 static bool g_stopSignal = false;
-
-void Server::signalServer(int sig)
-{
-	if (sig == SIGINT || sig == SIGQUIT)
-	{
-		g_stopSignal = 1;
-		std::cout<<ORANGE<<"Trying to close the server"<<RST<<std::endl;
-	}
-}
 
 Server::Server(char* port, std::string pswd, std::string name) : _name(name), _password(pswd)
 {
@@ -46,6 +37,17 @@ Server::Server(char* port, std::string pswd, std::string name) : _name(name), _p
 	sigaddset(&act.sa_mask, SIGQUIT);
 	sigaction(SIGINT, &act, NULL);
 	sigaction(SIGQUIT, &act, NULL);
+}
+
+Server::~Server() {}
+
+void Server::signalServer(int sig)
+{
+	if (sig == SIGINT || sig == SIGQUIT)
+	{
+		g_stopSignal = 1;
+		std::cout<<ORANGE<<"Trying to close the server"<<RST<<std::endl;
+	}
 }
 
 /*
@@ -75,35 +77,6 @@ int Server::verifInput(std::string port)
 		return 1;
 	}
 	return 0;
-}
-
-Client *Server::createNewClient(std::string msg)
-{
-	std::cout<<BOLDYELLOW<<"INFO : "<<msg<<RST<<std::endl;
-	size_t st_nname = msg.find("NICK");
-	std::string nickname;
-	if (st_nname != std::string::npos)
-	{
-		size_t end = msg.find('\r', st_nname);
-		if (end == std::string::npos)
-			end = msg.find('\n', st_nname);
-		if (end != std::string::npos)
-			nickname = msg.substr(st_nname + 5, end - (st_nname + 5));
-	}
-	size_t st_uname = msg.find(":");
-	std::string username;
-	if (st_uname != std::string::npos)
-	{
-		size_t end = msg.find('\r', st_uname);
-		if (end == std::string::npos)
-			end = msg.find('\n', st_uname);
-		if (end != std::string::npos)
-			username = msg.substr(st_uname + 1, end - (st_uname + 1));
-	}
-	std::cout<<BOLDWHITE<<"Nickname a partir de "<<st_nname<<" : "<<nickname<<RST<<std::endl;
-	std::cout<<BOLDWHITE<<"Username a partir de "<<st_uname<<" : "<<username<<RST<<std::endl;
-	Client* newClient = new Client("ip", username, nickname, false);
-	return newClient;
 }
 
 int	Server::startServer()
@@ -148,25 +121,22 @@ int	Server::startServer()
 					else
 					{
 						char clientInfo[1024];
+						bzero(clientInfo, 1024);
 						std::string clientInfoTotal;
 						int end;
-						//std::cout<<"START OF CLIENT LOOP"<<std::endl;
 						while ((end = recv(c_fd, clientInfo, 1024, 0)) > 0)
 						{
 							clientInfo[end] = '\0';
 							clientInfoTotal += clientInfo;							
 							if (clientInfoTotal.find("USER", 0) != std::string::npos)
 								break;
-							//std::cout<<"CLIENT LOOP"<<std::endl<<"BUFFER : "<<clientInfo<<std::endl<<"TOTAL BUFFER : "<<clientInfoTotal<<std::endl;
 						}
-						//std::cout<<"END OF CLIENT LOOP"<<std::endl;
-						Client* newClient = createNewClient(clientInfoTotal);
+						Client* newClient = new Client(c_fd, clientInfoTotal, this->_password);
 						if (newClient && !newClient->isAuth())
 						{
-							std:: string misspswd = ":" + this->_name +" 464 :Password Password required\r\n";
-							send(c_fd, misspswd.c_str(), misspswd.size(), 0);
-							//misspswd = ":" + this->_name +" 451 :You have not registered\r\n";
-							std::cout<<BOLDBLACK<<"error miss password send"<<RST<<std::endl;
+							this->sendMSG(c_fd, "464", newClient->getNickname(), "ERR_PASSWDMISMATCH", "Password incorrect");
+							delete newClient;
+							close(c_fd);
 						}
 						else if (newClient)
 						{
@@ -176,21 +146,20 @@ int	Server::startServer()
 							std::string m2 = ":" + this->_name + " 002 "+nname+" :Your host is " + this->_name + ", running version 1.0\r\n";
 							std::string m3 = ":" + this->_name + " 003 "+nname+" :This server was created Dec 4 2025\r\n";
 							std::string m4 = ":" + this->_name + " 004 "+nname+ " " + this->_name + " 1.0 itkol\r\n";
-							std::string m5 = ":" + this->_name + " 005 " + nname + " CHANTYPES=# CHANMODES=eIbq,k,flj,CFLMPQScgimnprstz PREFIX=(ov)@+ CASEMAPPING=ascii :are supported by this server\r\n";
 							std::cout<<YELLOW<<"Client: "<<newClient->getUsername()<<" accepted"<<RST<<std::endl;
 							send(c_fd, m1.c_str(), m1.size(), 0);
 							send(c_fd, m2.c_str(), m2.size(), 0);
 							send(c_fd, m3.c_str(), m3.size(), 0);
 							send(c_fd, m4.c_str(), m4.size(), 0);
-							send(c_fd, m5.c_str(), m5.size(), 0);
-							this->_clients.insert(std::make_pair(this->fds[i].fd, newClient));
+							this->_clients.insert(std::make_pair(c_fd, newClient));
+							this->fds.push_back((pollfd){c_fd, POLLIN, 0});
 						}
 					}
-					this->fds.push_back((pollfd){c_fd, POLLIN, 0});
 				}
 				else
 				{
 					char buffer[1024];
+					bzero(buffer, 1024);
 					int n = recv(this->fds[i].fd, buffer, sizeof(buffer), 0);
 					std::cout<<CYAN<<"Read : "<<buffer<<RST;
 					if (n <= 0)
@@ -204,12 +173,12 @@ int	Server::startServer()
 					{
 						buffer[n] = '\0';
 						std::string msg(buffer);
-						if (msg.rfind("PONG :myserver\r\n", 0) == 0)
+						if (msg.find("PONG") == 0)
 						{
 							std::cout<<GREEN<<"PONG from : "<<this->fds[i].fd<<RST<<std::endl;
 							continue;
 						}
-						else if (msg.rfind("PING irc42.serv\r\n") == 0)
+						else if (msg.find("PING") == 0)
 						{
 							for (size_t j = 0; j < this->fds.size(); j++)
 							{
@@ -224,6 +193,8 @@ int	Server::startServer()
 						}
 						else if (msg.find("JOIN") == 0)
 							channelJoin(this->fds[i].fd, msg);
+						else if (msg.find("PRIVMSG") == 0)
+							msgBroadcast(this->fds[i].fd, msg);
 						else if (msg.find("PASS") == 0)
 							std::cout<<BOLDWHITE<<"client pass send"<<RST<<std::endl;
 					}
@@ -241,56 +212,88 @@ Channel *Server::findChannel(std::string name)
 	return NULL;
 }
 
+Client *Server::findClient(int fd)
+{
+	std::map<int, Client*>::iterator it = this->_clients.find(fd);
+	if (it != this->_clients.end())
+		return it->second;
+	return NULL;
+}
+
 void Server::channelJoin(int fd, std::string cmd)
 {
 	char		characters[4] = {'&', '#', '+', '!'};
-	size_t		dp_pos = cmd.find(':');
 	std::string ch_name = "";
 	(void)fd;
 
-	if (dp_pos != std::string::npos)
+	for (int i = 0; i < 4; i++)
 	{
-		for (int i = 0; i < 4; i++)
+		char c = characters[i];
+		if (cmd.find(c) != std::string::npos)
 		{
-			char c = characters[i];
-			if (cmd[dp_pos + 1] == c)
+			size_t chname_end = cmd.find('\n');
+			if (chname_end == std::string::npos)
+				chname_end = cmd.find('\r');
+			if (chname_end != std::string::npos)
 			{
-				size_t chname_end = cmd.find('\n', dp_pos);
-				if (chname_end == std::string::npos)
-					chname_end = cmd.find('\r', dp_pos);
-				if (chname_end != std::string::npos)
-				{
-					ch_name = cmd.substr(dp_pos + 1, chname_end - (dp_pos + 1));
-					break;
-				}
+				ch_name = cmd.substr(cmd.find(c) + 1, chname_end - 1 - (cmd.find(c) + 1));
+				break;
 			}
 		}
-		if (ch_name.size() != 0)
-		{
-			Channel* ch = findChannel(ch_name);
-			if (!ch)
-			{
-				Channel *newCh = new Channel(ch_name, "topic", "Louvre123");
-				this->_channels.insert(std::make_pair(ch_name, newCh));
-			}
-			else
-			{
-				/* if il est pas sous invit only
-					join ch;
-				else
-					sendMSG(); */
-			}
-		}
-		// else renvoyer une erreur
 	}
-	// else renvoyer une erreur vers le client
+	if (ch_name.size() != 0)
+	{
+		Channel*	ch = findChannel(ch_name);
+		Client*		clt = findClient(fd);
+		if (!clt)
+			return ;
+		if (!ch)
+		{
+			Channel *newCh = new Channel(ch_name, clt);
+			this->_channels.insert(std::make_pair(ch_name, newCh));
+			std::string wmsg = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN "+ch_name+"\r\n";
+			send(fd, wmsg.c_str(), wmsg.size(), 0);
+			newCh->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN :"+ch_name+"\r\n", this->_serverfd, fd);
+			std::cout<<fd<<clt->getNickname()<<ch_name<<std::endl;
+			sendMSG(fd, "332", clt->getNickname(), ch_name, "Welcome to this channel !");
+		}
+		else
+		{
+			std::string wmsg = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN "+ch_name+"\r\n";
+			send(fd, wmsg.c_str(), wmsg.size(), 0);
+			ch->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN :"+ch_name+"\r\n", this->_serverfd, fd);
+			std::cout<<fd<<clt->getNickname()<<ch_name<<std::endl;
+			sendMSG(fd, "332", clt->getNickname(), ch_name, "Welcome to this channel !");
+			ch->addToChannel(clt);
+			/* if il est pas sous invit only
+				join ch;
+			else
+				sendMSG(); */
+		}
+	}
+	// else renvoyer une erreur
+// else renvoyer une erreur vers le client
 }
 
 void Server::sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const
 {
 	std::string msg = ":"+this->_name+" "+code+" "+uname+" "+spm+" :"+tpm+"\r\n";
 	send(fd, msg.c_str(), msg.size(), 0);
-	std::cerr<<BOLDWHITE<<"SERVER : Message send to client "<<fd<<" : "<<msg<<RST<<std::endl;
+	std::cout<<BOLDWHITE<<"SERVER : Message send to client "<<fd<<" : "<<msg<<RST<<std::endl;
 }
 
-Server::~Server() {}
+void Server::msgBroadcast(int fd, std::string msg)
+{
+	size_t s_dp = msg.find(":");
+	size_t e_msg = msg.find("\r");
+	if (e_msg == std::string::npos)
+		e_msg = msg.find("\n");
+	std::string chname = msg.substr(8, (s_dp - 1) - 8);
+	Channel	*ch = findChannel(chname);
+	if (ch && e_msg != std::string::npos)
+	{
+		Client*	clt = findClient(fd);
+		std::string tosend = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 PRIVMSG #"+chname+" :"+msg.substr(s_dp + 1, e_msg)+"\r\n";
+		ch->sendToAll(tosend, this->_serverfd, fd);
+	}
+}
