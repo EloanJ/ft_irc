@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/11 18:27:28 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/12 12:39:15 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,4 +48,6 @@ class Server
 		void		msgBroadcast(int fd, std::string msg);
 		void		sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const;
 		static void signalServer(int sig);
+		std::string	getName();
+		void 		channelPart(int fd, std::string cmd);
 };

@@ -1,0 +1,2 @@
+-segfault car je veux acceder a it->first dans findChannel et it-> first est vide (wtf ?)
+-la recherche de channel pour le leave ne marche pas car findChannel revoit null.

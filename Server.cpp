@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/11 18:38:21 by vduarte          ###   ########.fr       */
+/*   Updated: 2025/12/12 14:58:20 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -195,8 +195,8 @@ int	Server::startServer()
 							channelJoin(this->fds[i].fd, msg);
 						else if (msg.find("PRIVMSG") == 0)
 							msgBroadcast(this->fds[i].fd, msg);
-						else if (msg.find("PASS") == 0)
-							std::cout<<BOLDWHITE<<"client pass send"<<RST<<std::endl;
+						else if (msg.find("PART") == 0)
+							channelPart(this->fds[i].fd, msg);
 					}
 				}
 			}
@@ -207,6 +207,7 @@ int	Server::startServer()
 Channel *Server::findChannel(std::string name)
 {
 	std::map<std::string, Channel*>::iterator it = this->_channels.find(name);
+	std::cout<<"it.first :"<<it->second<<"ch_name :"<<name<<std::endl;
 	if (it != this->_channels.end())
 		return it->second;
 	return NULL;
@@ -241,6 +242,7 @@ void Server::channelJoin(int fd, std::string cmd)
 			}
 		}
 	}
+	std::cout<<"Channel join ch name : "<<ch_name<<std::endl;
 	if (ch_name.size() != 0)
 	{
 		Channel*	ch = findChannel(ch_name);
@@ -295,5 +297,57 @@ void Server::msgBroadcast(int fd, std::string msg)
 		Client*	clt = findClient(fd);
 		std::string tosend = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 PRIVMSG #"+chname+" :"+msg.substr(s_dp + 1, e_msg)+"\r\n";
 		ch->sendToAll(tosend, this->_serverfd, fd);
+	}
+}
+
+std::string Server::getName()
+{
+	return this->_name;
+}
+
+void Server::channelPart(int fd, std::string cmd)
+{
+	std::cout<<BOLDYELLOW<<"channelPart called"<<RST<<std::endl;
+	std::string ch_name = "";
+
+	size_t part_pos = cmd.find("PART ");
+	if (part_pos != std::string::npos)
+	{
+		size_t chname_start = part_pos + 5;
+		size_t chname_end = cmd.find('\n', chname_start);
+		if (chname_end == std::string::npos)
+			chname_end = cmd.find('\n', chname_start);
+		if (chname_end)
+			 ch_name = cmd.substr(chname_start, chname_end - chname_start);
+	}
+	std::cout<<BOLDYELLOW<<"After ch_name : "<<ch_name<<RST<<std::endl;
+	if (ch_name.size() != 0)
+	{
+		Channel	*ch = findChannel(ch_name);
+		Client	*clt = findClient(fd);
+		if (!clt)
+			return ;
+		if (!ch)
+		{
+			std::cout<<"ch not find without #"<<std::endl;
+			ch_name = "#" + ch_name;
+			ch = findChannel(ch_name);
+			if (!ch)
+				std::cout<<"ch not find with #"<<std::endl;
+			sendMSG(fd, "403", clt->getNickname(), ch_name, "No such channel");
+			return ;
+		}
+		if (!ch->isInChannel(clt))
+		{
+			sendMSG(fd, "442", clt->getNickname(), ch_name, "You're not on that channel");
+			return ;
+		}
+		ch->leaveChannel(clt, this->_name, this->_serverfd);
+	}
+	else
+	{
+		Client *clt = findClient(fd);
+        if (clt)
+            sendMSG(fd, "461", clt->getNickname(), "PART", "Not enough parameters");
 	}
 }
