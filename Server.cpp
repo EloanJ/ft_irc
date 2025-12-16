@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/12 14:58:20 by ejonsery         ###   ########.fr       */
+/*   Updated: 2025/12/15 14:51:30 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -166,7 +166,7 @@ int	Server::startServer()
 					{
 						std::cout << BOLDMAGENTA << "Client disconected : " << fds[i].fd << RST << std::endl;
 						close(fds[i].fd);
-						fds.erase(fds.begin() + 1);
+						fds.erase(fds.begin() + i);
 						i--;
 					}
 					else
@@ -207,9 +207,12 @@ int	Server::startServer()
 Channel *Server::findChannel(std::string name)
 {
 	std::map<std::string, Channel*>::iterator it = this->_channels.find(name);
-	std::cout<<"it.first :"<<it->second<<"ch_name :"<<name<<std::endl;
+	
 	if (it != this->_channels.end())
+	{
+		std::cout<<"it.first :"<<it->first<<"ch_name :"<<name<<std::endl;
 		return it->second;
+	}
 	return NULL;
 }
 
@@ -295,6 +298,13 @@ void Server::msgBroadcast(int fd, std::string msg)
 	if (ch && e_msg != std::string::npos)
 	{
 		Client*	clt = findClient(fd);
+		if (!clt)
+			return ;
+		if (!ch->isInChannel(clt))
+		{
+			sendMSG(fd, "442", clt->getNickname(), chname, "You're not on that channel");
+            return;
+		}
 		std::string tosend = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 PRIVMSG #"+chname+" :"+msg.substr(s_dp + 1, e_msg)+"\r\n";
 		ch->sendToAll(tosend, this->_serverfd, fd);
 	}
@@ -316,24 +326,26 @@ void Server::channelPart(int fd, std::string cmd)
 		size_t chname_start = part_pos + 5;
 		size_t chname_end = cmd.find('\n', chname_start);
 		if (chname_end == std::string::npos)
-			chname_end = cmd.find('\n', chname_start);
-		if (chname_end)
-			 ch_name = cmd.substr(chname_start, chname_end - chname_start);
+			chname_end = cmd.find('\r', chname_start);
+		if (chname_end != std::string::npos)
+		{
+			ch_name = cmd.substr(chname_start, chname_end - chname_start);
+			size_t end = ch_name.find_last_not_of(" \t\r\n");
+			if (end != std::string::npos)
+				ch_name = ch_name.substr(0, end + 1);
+		}
 	}
-	std::cout<<BOLDYELLOW<<"After ch_name : "<<ch_name<<RST<<std::endl;
+	std::cout << "ch_name brut : [" << ch_name << "] taille: " << ch_name.size() << std::endl;
 	if (ch_name.size() != 0)
 	{
 		Channel	*ch = findChannel(ch_name);
 		Client	*clt = findClient(fd);
+		std::cout<<"Client :"<<clt->getNickname()<<std::endl;
 		if (!clt)
 			return ;
 		if (!ch)
 		{
 			std::cout<<"ch not find without #"<<std::endl;
-			ch_name = "#" + ch_name;
-			ch = findChannel(ch_name);
-			if (!ch)
-				std::cout<<"ch not find with #"<<std::endl;
 			sendMSG(fd, "403", clt->getNickname(), ch_name, "No such channel");
 			return ;
 		}

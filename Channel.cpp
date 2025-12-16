@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:59 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/12 12:38:10 by ejonsery         ###   ########.fr       */
+/*   Updated: 2025/12/15 12:10:46 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ void Channel::sendToAll(std::string msg, int fd_server, int fd_sender)
 
 void Channel::leaveChannel(Client *clt, std::string h_name, int fd_server)
 {
-	std::string part_msg = ":" + clt->getNickname() + "!" + clt->getUsername() + "@" + h_name + " PART " + this->_name + "\r\n";
+	std::string part_msg = ":" + clt->getNickname() + "!" + clt->getNickname() + "@" + h_name + " PART " + this->_name + "\r\n";
 	std::cout<<"part msg : "<<part_msg<<std::endl;
 	for (std::vector<Client *>::iterator i = this->_lclients.begin(); i != this->_lclients.end(); i++)
 	{
@@ -51,6 +51,9 @@ void Channel::leaveChannel(Client *clt, std::string h_name, int fd_server)
 		if (*i == clt)
 		{
 			std::cout<<BOLDMAGENTA<<"FIND USER"<<RST<<std::endl;
+			std::cout << "Envoi PART au client fd=" << clt->getFd() << std::endl;
+    		int ret = send(clt->getFd(), part_msg.c_str(), part_msg.size(), 0);
+   			std::cout << "Résultat send: " << ret << std::endl;
 			this->sendToAll(part_msg, fd_server, clt->getFd());
 			this->_lclients.erase(i);
 			for (std::vector<Client *>::iterator op = this->_operators.begin(); op != this->_operators.end(); op++)
@@ -79,4 +82,9 @@ bool Channel::isInChannel(Client *clt)
 			return true;
 	}
 	return false;
+}
+
+std::string	Channel::getChName()
+{
+	return this->_name;
 }
