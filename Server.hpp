@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/12 12:39:15 by ejonsery         ###   ########.fr       */
+/*   Updated: 2025/12/17 17:10:18 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,9 +45,13 @@ class Server
 		void		channelJoin(int fd, std::string cmd);
 		Channel		*findChannel(std::string name);
 		Client		*findClient(int fd);
+		Client		*findClient(std::string name);
 		void		msgBroadcast(int fd, std::string msg);
 		void		sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const;
 		static void signalServer(int sig);
-		std::string	getName();
+		const std::string	getName() const;
 		void 		channelPart(int fd, std::string cmd);
+		void		channelKick(int fd, std::string cmd);
+		void		channelInvite(int fd, std::string cmd);
+		void		serverQuit(Client *clt);
 };
