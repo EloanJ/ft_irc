@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/17 17:10:18 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/05 15:16:44 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,6 @@ class Server
 		~Server();
 		int			verifInput(std::string port);
 		int			startServer();
-		void		channelJoin(int fd, std::string cmd);
 		Channel		*findChannel(std::string name);
 		Client		*findClient(int fd);
 		Client		*findClient(std::string name);
@@ -50,8 +49,12 @@ class Server
 		void		sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const;
 		static void signalServer(int sig);
 		const std::string	getName() const;
+		void		channelJoin(int fd, std::string cmd);
 		void 		channelPart(int fd, std::string cmd);
 		void		channelKick(int fd, std::string cmd);
 		void		channelInvite(int fd, std::string cmd);
+		void		channelTopic(int fd, std::string cmd);
+		void		channelMode(int fd, std::string cmd);
+		void		clearClientChannel(Client *clt);
 		void		serverQuit(Client *clt);
 };

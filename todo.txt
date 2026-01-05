@@ -1,8 +1,11 @@
 - channel mode (i, t, k, o, l)
 - Channel operator
 - Channel kick ✅
-- Channel invite
-- Channel topic
+- Channel invite ✅
+- Channel join invite ✅
+- Channel topic ✅
 - Get user ip
-- clean leaks
+- clean leaks ✅
 - private message ✅
+- clear clients channel ✅
+- correctly clear port

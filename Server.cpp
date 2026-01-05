@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/17 17:33:47 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/05 16:12:04 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,27 @@ Server::Server(char* port, std::string pswd, std::string name) : _name(name), _p
 	sigaction(SIGQUIT, &act, NULL);
 }
 
-Server::~Server() {}
+Server::~Server()
+{
+	if (this->_channels.size() > 0)
+	{
+		for (std::map<std::string, Channel *>::iterator i = this->_channels.begin(); i != this->_channels.end(); i++)
+		{
+			if (i->second != NULL)
+				delete i->second;
+		}
+		this->_channels.clear();
+	}
+	if (this->_clients.size() > 0)
+	{
+		for (std::map<int, Client *>::iterator i = this->_clients.begin(); i != this->_clients.end(); i++)
+		{
+			if (i->second != NULL)
+				delete i->second;
+		}
+		this->_clients.clear();
+	}
+}
 
 void Server::signalServer(int sig)
 {
@@ -102,7 +122,7 @@ int	Server::startServer()
 			{
 				if (this->fds[j].fd != this->_serverfd)
 				{
-					std::string ping = "PING :irc.serv\r\n";
+					std::string ping = "PING :"+this->_name+"\r\n";
 					send(this->fds[j].fd, ping.c_str(), ping.size(), 0);
 					std::cout<<GREEN<<"PING send to : "<<this->fds[j].fd<<RST<<std::endl;
 				}
@@ -166,6 +186,12 @@ int	Server::startServer()
 					{
 						std::cout << BOLDMAGENTA << "Client disconected : " << fds[i].fd << RST << std::endl;
 						close(fds[i].fd);
+						std::map<int, Client *>::iterator cpos = this->_clients.find(fds[i].fd);
+						if (cpos != this->_clients.end())
+						{
+							delete cpos->second;
+							this->_clients.erase(cpos);
+						}
 						fds.erase(fds.begin() + i);
 						i--;
 					}
@@ -197,10 +223,14 @@ int	Server::startServer()
 							channelInvite(this->fds[i].fd, msg);
 						else if (msg.find("PRIVMSG") == 0)
 							msgBroadcast(this->fds[i].fd, msg);
+						else if (msg.find("TOPIC") == 0)
+							channelTopic(this->fds[i].fd, msg);
 						else if (msg.find("PART") == 0)
 							channelPart(this->fds[i].fd, msg);
 						else if (msg.find("KICK") == 0)
 							channelKick(this->fds[i].fd, msg);
+						else if (msg.find("MODE") == 0)
+							channelMode(this->fds[i].fd, msg);
 						else if (msg.find("QUIT") == 0)
 							serverQuit(this->findClient(this->fds[i].fd));
 					}
@@ -215,10 +245,7 @@ Channel *Server::findChannel(std::string name)
 	std::map<std::string, Channel*>::iterator it = this->_channels.find(name);
 	
 	if (it != this->_channels.end())
-	{
-		std::cout<<"it.first :"<<it->first<<"ch_name :"<<name<<std::endl;
 		return it->second;
-	}
 	return NULL;
 }
 
@@ -274,33 +301,11 @@ void Server::channelJoin(int fd, std::string cmd)
 			std::string wmsg = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN "+ch_name+"\r\n";
 			send(fd, wmsg.c_str(), wmsg.size(), 0);
 			newCh->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN :"+ch_name+"\r\n", this->_serverfd, fd);
-			sendMSG(fd, "332", clt->getNickname(), ch_name, "Welcome to this channel !");
 			std::cout<<GREY<<"Channel Creation"<<std::endl<<"Client information : fd = "<<fd<<" - name : "<<clt->getUsername()<<RST<<std::endl;
 		}
 		else
-		{
-			if (ch->isInChannel(clt))
-			{
-				sendMSG(clt->getFd(), "443", clt->getUsername(), ch_name, "You are already on this channel");
-				return;
-			}
-			std::string wmsg = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN "+ch_name+"\r\n";
-			send(fd, wmsg.c_str(), wmsg.size(), 0);
-			ch->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN :"+ch_name+"\r\n", this->_serverfd, fd);
-			std::cout<<fd<<clt->getNickname()<<ch_name<<std::endl;
-			sendMSG(fd, "332", clt->getNickname(), ch_name, "Welcome to this channel !");
-			ch->addToChannel(clt);
-			std::cout<<GREY<<"Channel Join"<<std::endl<<"Client information : fd = "<<fd<<" - name : "<<clt->getUsername()<<RST<<std::endl;
-			/* if il est pas sous invit only
-				join ch;
-			else
-				sendMSG(); */
-		}
+			ch->joinChannel(clt, this->_serverfd, this->_name);
 	}
-	// else
-	// {
-	// 	sendMSG(fd, "403", )
-	// }
 }
 
 void Server::sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const
@@ -474,6 +479,124 @@ void Server::channelInvite(int fd, std::string cmd)
 			std::cout<<BOLDRED<<"Y A PAS DE REC"<<RST<<std::endl;
 		if (chn && clt_snd && clt_rec)
 			chn->inviteChannel(clt_snd, clt_rec, this->_name);
+	}
+}
+
+void Server::channelTopic(int fd, std::string cmd)
+{
+	char		characters[4] = {'&', '#', '+', '!'};
+	std::string ch_name = "";
+	std::string ntopic = "";
+	bool btopic = false;
+	
+
+	for (int i = 0; i < 4; i++)
+	{
+		char c = characters[i];
+		if (cmd.find(c) != std::string::npos)
+		{
+			size_t ch_end = cmd.find(":");
+			if (ch_end != std::string::npos)
+			{
+				btopic = !btopic;
+				size_t ch_st = cmd.find(characters[i]);
+				ch_name = cmd.substr(ch_st, (ch_end - ch_st - 1));
+				size_t m_end = cmd.find("\r");
+				if (m_end == std::string::npos)
+					m_end = cmd.find("\n");
+				if (m_end != std::string::npos)
+					ntopic = cmd.substr(ch_end + 1, m_end - 1);
+				std::cout<<GREY<<ch_st<<" "<<ch_end<<" "<<m_end<<RST;
+			}
+			else
+			{
+				ch_end = cmd.find("\r");
+				if (ch_end == std::string::npos)
+					ch_end = cmd.find("\n");
+				if (ch_end != std::string::npos)
+				{
+					size_t ch_st = cmd.find(characters[i]);
+					ch_name = cmd.substr(ch_st, ch_end - ch_st);
+				}
+			}
+			break;
+		}
+	}
+	if (btopic)
+		std::cout<<GREY<<"DEBUG TOPIC\nCHANNEL NAME : "<<ch_name<<"$\nTOPIC NAME : "<<ntopic<<RST<<std::endl;
+	else
+		std::cout<<GREY<<"DEBUG TOPIC\nCHANNEL NAME : "<<ch_name<<"$\nNO TOPIC NAME\n"<<RST;
+	Client *clt = this->findClient(fd);
+	Channel *ch = this->findChannel(ch_name);
+	std::cout<<GREY<<"DEBUG CHANNEL TOPIC\n"<<clt<<" "<<ch<<std::endl;
+	if (clt && ch && !btopic)
+		ch->sndTopicChannel(clt, this->_name);
+	else if (clt && ch && btopic)
+		ch->setTopicChannel(clt, ntopic, this->_name);
+}
+
+void Server::channelMode(int fd, std::string cmd)
+{
+	char		characters[4] = {'&', '#', '+', '!'};
+	char		carmode[2] = {'+', '-'};
+	std::string ch_name = "";
+	std::string mode_ch = "";
+	std::string tparam = "";
+	for (int i = 0; i < 4; i++)
+	{
+		char c = characters[i];
+		if (cmd.find(c) != std::string::npos)
+		{
+			size_t cst = cmd.find(characters[i]);
+			if (cst != std::string::npos)
+			{
+				size_t cend = cmd.find(" ", cst);
+				if (cend != std::string::npos)
+				{
+					ch_name = cmd.substr(cst, (cend - cst));
+				}
+			}
+			break;
+		}
+	}
+	for (int i = 0; i < 2; i++)
+	{
+		char c = carmode[i];
+		if (cmd.find(c) != std::string::npos)
+		{
+			size_t m_st = cmd.find(c);
+			size_t e_st = cmd.find(' ', m_st);
+			if (e_st == std::string::npos)
+			{
+				e_st = cmd.find('\r');
+				if (e_st == std::string::npos)
+					e_st = cmd.find('\n');
+				if (e_st != std::string::npos)
+					mode_ch = cmd.substr(m_st, (e_st - m_st));
+			}
+			else
+			{
+				if (e_st != std::string::npos)
+					mode_ch = cmd.substr(m_st, (e_st - m_st));
+				size_t m_end = cmd.find('\r');
+				if (m_end == std::string::npos)
+					m_end = cmd.find('\n');
+				if (m_end != std::string::npos)
+					tparam = cmd.substr(e_st + 1, (m_end - (e_st + 1)));
+			}
+			break;
+		}
+	}
+	(void)fd;
+	std::cout<<GREY<<"MODE DEBUG\n"<<"CHANNEL NAME : "<<ch_name<<"\nMODE : "<<mode_ch<<"\nTPARAM : "<<tparam<<RST<<std::endl;
+}
+
+void Server::clearClientChannel(Client *clt)
+{
+	for (std::map<std::string, Channel *>::iterator i; i != this->_channels.end(); i++)
+	{
+		if (i->second->isInChannel(clt))
+			i->second->leaveChannel(clt, this->_name, this->_serverfd);
 	}
 }
 

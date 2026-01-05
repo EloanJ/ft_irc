@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:59 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/17 17:36:40 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/05 15:31:00 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,10 @@
 Channel::Channel(std::string name, Client* clt)
 {
 	this->_name = name;
+	this->_btopic = false;
+	this->_invite = false;
+	this->_blimit = false;
+	this->_bkey = false;
 	if (clt != NULL)
 	{
 		this->_lclients.push_back(clt);
@@ -22,7 +26,15 @@ Channel::Channel(std::string name, Client* clt)
 	}
 }
 
-Channel::~Channel() {}
+Channel::~Channel()
+{
+	if (this->_lclients.size() > 0)
+		this->_lclients.clear();
+	if (this->_operators.size() > 0)
+		this->_operators.clear();
+	if (this->_cinvites.size() > 0)
+		this->_cinvites.clear();
+}
 
 void Channel::sendToAll(std::string msg, int fd_server, int fd_sender)
 {
@@ -35,6 +47,40 @@ void Channel::sendToAll(std::string msg, int fd_server, int fd_sender)
 			if ((*i)->getFd() != fd_server && (*i)->getFd() != fd_sender)
 				send((*i)->getFd(), msg.c_str(), msg.size(), 0);
 		}
+	}
+}
+
+void Channel::joinChannel(Client *clt, int sfd, std::string sname)
+{
+	std::string to_send = "";
+	if (this->isInChannel(clt))
+	{
+		to_send = ":"+sname+" 443 "+clt->getNickname()+" "+this->_name+" :is already on channel";
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+	}
+	else if (this->_blimit && this->_lclients.size() == this->_nlimit)
+	{
+		to_send = ":"+sname+" 471 "+" "+this->_name+" :Cannot join channel (+l)";
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+	}
+	else if (this->_invite && !this->isInvitetoChannel(clt))
+	{
+		to_send = ":"+sname+" 473 "+" "+this->_name+" :Cannot join channel (+i)";
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+	}
+	else if (this->_bkey)
+	{
+		to_send = ":"+sname+" 475 "+" "+this->_name+" :Cannot join channel (+k)";
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+	}
+	else
+	{
+		to_send = ":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN "+this->_name+"\r\n";
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+		this->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@127.0.0.1 JOIN :"+this->_name+"\r\n", sfd, clt->getFd());
+		std::cout<<clt->getFd()<<clt->getNickname()<<this->_name<<std::endl;
+		this->_lclients.push_back(clt);
+		std::cout<<GREY<<"Channel Join"<<std::endl<<"Client information : fd = "<<clt->getFd()<<" - name : "<<clt->getUsername()<<RST<<std::endl;
 	}
 }
 
@@ -124,6 +170,7 @@ void Channel::inviteChannel(Client *clt_snd, Client *clt_rec, std::string sname)
 		else if (this->_invite && this->isOperator(clt_snd))
 		{
 			std::string to_send = ":"+clt_snd->getNickname()+"!"+clt_rec->getNickname()+"@127.0.0.1 INVITE "+clt_rec->getNickname()+" "+this->_name+"\r\n";
+			this->_cinvites.push_back(clt_rec);
 			send(clt_rec->getFd(), to_send.c_str(), to_send.size(), 0);
 		}
 		else
@@ -144,6 +191,37 @@ void Channel::inviteChannel(Client *clt_snd, Client *clt_rec, std::string sname)
 	}
 }
 
+void Channel::sndTopicChannel(Client *clt, std::string sname)
+{
+	std::cout<<GREY<<"DEBUG OF SENDTOPIC\n"<<RST;
+	std::string to_send = "";
+	if (this->_btopic)
+		to_send = ":"+sname+" 332 "+clt->getNickname()+" "+this->_name+" :"+this->_stopic+"\r\n";
+	else if (!this->_btopic)
+		to_send = ":"+sname+" 331 "+clt->getNickname()+" "+this->_name+" :No topic is set\r\n";
+	std::cout<<GREY<<"TO SEND : "+to_send+"\n"<<RST;
+	send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+}
+
+void Channel::setTopicChannel(Client *clt, std::string nname, std::string sname)
+{
+	if (this->isInChannel(clt) && this->isOperator(clt))
+	{
+		this->_stopic = nname;
+		this->_btopic = !this->_btopic;
+	}
+	else if (this->isInChannel(clt) && !this->isOperator(clt))
+	{
+		std::string to_send = ":"+sname+" 482 "+this->_name+" :You're not channel operator\r\n"; // not operator : ERR_CHANOPRIVSNEEDED
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+	}
+	else if (!this->isInChannel(clt))
+	{
+		std::string to_send = ":"+sname+" 442 "+this->_name+" :You're not on that channel\r\n"; // not on channel : ERR_NOTONCHANNEL
+		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+	}
+}
+
 void Channel::addToChannel(Client *clt)
 {
 	this->_lclients.push_back(clt);
@@ -152,6 +230,16 @@ void Channel::addToChannel(Client *clt)
 bool Channel::isInChannel(Client *clt)
 {
 	for (std::vector<Client *>::iterator i = this->_lclients.begin(); i != this->_lclients.end(); i++)
+	{
+		if (*i == clt)
+			return true;
+	}
+	return false;
+}
+
+bool Channel::isInvitetoChannel(Client *clt)
+{
+	for (std::vector<Client *>::iterator i = this->_cinvites.begin(); i != this->_cinvites.end(); i++)
 	{
 		if (*i == clt)
 			return true;
