@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:56 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/05 16:14:59 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/08 17:08:36 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,12 +15,15 @@
 #include <sys/socket.h>
 #include <vector>
 #include <map>
+#include <sstream>
+#include <cstdlib>
 
 class Channel
 {
 	private:
 		std::string	_name;
 		bool					_btopic;
+		bool					_botopic;
 		std::string				_stopic;
 
 		bool					_invite;
@@ -29,23 +32,28 @@ class Channel
 		size_t					_nlimit;
 
 		bool					_bkey;
-		//std::string				_skey;
+		std::string				_skey;
+
+		std::string *_sname;
 
 		std::vector<Client*>	_lclients;
 		std::vector<Client*>	_operators;
 		std::vector<Client*>	_cinvites;
 	public:
-		Channel(std::string name, Client* clt);
-		void		sendToAll(std::string msg, int fd_server, int fd_sender);
+		Channel(std::string name, Client* clt, std::string *sname);
+		void		sendToAll(std::string msg, int fd_sender);
 		void		addToChannel(Client *clt);
-		void		joinChannel(Client *clt, int sfd, std::string sname);
-		void		leaveChannel(Client *clt, std::string h_name, int fd_server);
-		void		kickChannel(Client *clt_op, Client *clt_tk, std::string reason, std::string sname);
-		void		inviteChannel(Client *clt_snd, Client *clt_rec, std::string sname);
-		void		modeChannel(Client *clt, std::string sname);
-		void		sndTopicChannel(Client *clt, std::string sname);
-		void		setTopicChannel(Client *clt, std::string nname, std::string sname);
+		void		joinChannel(Client *clt, std::string key);
+		void		leaveChannel(Client *clt, std::string reason);
+		void		kickChannel(Client *clt_op, Client *clt_tk, std::string reason);
+		void		inviteChannel(Client *clt_snd, Client *clt_rec);
+		void		modeChannel(Client *clt, std::string md, std::string tp);
+		void		sndModeChannel(Client *clt);
+		void		sndTopicChannel(Client *clt);
+		void		sndTopicAll();
+		void		setTopicChannel(Client *clt, std::string nname);
 		bool		isInChannel(Client *clt);
+		Client		*isInChannel(std::string nname);
 		bool		isInvitetoChannel(Client *clt);
 		bool		isOperator(Client *clt);
 		std::string	getChName();

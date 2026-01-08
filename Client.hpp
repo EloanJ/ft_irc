@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:51 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/11 17:14:13 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/08 17:08:36 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,15 +21,20 @@ class Client
 		std::string _username;
 		std::string _nickname;
 		bool		_authenticated;
-		//int		_ip;
+		std::string	_sevname;
+		int			_createStep;
 	public:
-		Client(int fd, std::string msg, std::string spass);
-		Client(int fd, std::string uname, std::string nname, bool auth);
+		Client(int fd);
 		~Client();
 
+		void				setPassword(std::string cmd, std::string pass);
+		void				setNickname(std::string cmd);
+		void				setUsernameServername(std::string cmd);
+		int					getCreateStep() const;
 		int					getFd() const;
-		const	std::string getUsername() const;
-		const	std::string getNickname() const;
-		void	setAuth(bool auth);
-		bool	isAuth() const;
+		const std::string 	getUsername() const;
+		const std::string 	getNickname() const;
+		const std::string 	getSevname() const;
+		void				setCreateStep(int step);
+		bool				isAuth() const;
 };
