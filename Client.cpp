@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:53 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/08 17:08:36 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/09 10:37:56 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -131,6 +131,11 @@ void Client::setCreateStep(int step)
 bool Client::isAuth() const
 {
 	return this->_authenticated;
+}
+
+void Client::setAuth(bool auth)
+{
+	this->_authenticated = auth;
 }
 
 Client::~Client() {}

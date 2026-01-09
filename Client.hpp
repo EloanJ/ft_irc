@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:51 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/08 17:08:36 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/09 10:37:23 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,4 +37,5 @@ class Client
 		const std::string 	getSevname() const;
 		void				setCreateStep(int step);
 		bool				isAuth() const;
+		void				setAuth(bool auth);
 };

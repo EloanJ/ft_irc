@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/08 17:08:36 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/09 11:03:06 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -276,6 +276,13 @@ int Server::createClient(int fd, std::string cmd, int step)
 	{
 		clt = new Client(fd);
 		this->_clients.insert(std::make_pair(fd, clt));
+	}
+	if (step != clt->getCreateStep())
+	{
+		std::string ts = ":"+this->_name+" 461 :Not enough parameters\r\n";
+		send(fd, ts.c_str(), ts.size(), 0);
+		clt->setAuth(true);
+		clt->setCreateStep(-1);
 	}
 	switch (step)
 	{
@@ -683,7 +690,7 @@ void Server::channelTopic(int fd, std::string cmd)
 				if (m_end == std::string::npos)
 					m_end = cmd.find("\n");
 				if (m_end != std::string::npos)
-					ntopic = cmd.substr(ch_end + 1, m_end - 1);
+					ntopic = cmd.substr(ch_end + 1, m_end - ch_end - 1);
 				std::cout<<GREY<<ch_st<<" "<<ch_end<<" "<<m_end<<RST;
 			}
 			else
