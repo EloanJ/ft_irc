@@ -6,7 +6,7 @@
 #    By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/12/03 12:44:32 by vduarte           #+#    #+#              #
-#    Updated: 2025/12/05 12:02:30 by vduarte          ###   ########.fr        #
+#    Updated: 2026/01/09 15:23:29 by vduarte          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -16,7 +16,7 @@ CXX = c++
 
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -g3
 
-SRC = Server.cpp Channel.cpp Client.cpp main.cpp
+SRC = Server.cpp Bot.cpp Channel.cpp Client.cpp main.cpp
 
 OBJ = $(SRC:%.cpp=obj/%.o)
 

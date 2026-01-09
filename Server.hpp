@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/08 17:08:36 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/09 15:23:29 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,7 @@
 #include <map>
 #include <string>
 #include <ctime>
+#include "Bot.hpp"
 #include "Channel.hpp"
 #include "Client.hpp"
 #include "color.hpp"
@@ -31,6 +32,7 @@
 class Server
 {
 	private:
+		Bot								_bot;
 		std::string						_name;
 		std::string						_password;
 		std::map<std::string, Channel*>	_channels;
@@ -60,5 +62,5 @@ class Server
 		void		channelTopic(int fd, std::string cmd);
 		void		channelMode(int fd, std::string cmd);
 		void		clearClientChannel(Client *clt);
-		void		serverQuit(int fd);
+		void		serverQuit(int fd, std::string cmd);
 };

@@ -22,7 +22,7 @@
 - topic ✅
 - kick ✅
 - verif all error message
-- nick 431 ERR_NONICKNAMEGIVEN
+- nick 431 ERR_NONICKNAMEGIVEN ✅
 - nick 432 ERR_ERRONEUSNICKNAME
 - invite 341 RPL_INVITING ✅
 - date of server start ✅
@@ -30,10 +30,10 @@
 
 Things to verify :
 - order of connection process : (INFO CAP LS) - PASS - NICK - (SERVICE MESSAGE) - USER ✅
-- boucle bloquante sur la connexion
-- quit peut prendre en charge un msg mais aucune error
-- part peut prendre en charge un msg (envoye a la place de l'username)
+- boucle bloquante sur la connexion ✅
+- quit peut prendre en charge un msg mais aucune error ✅
+- part peut prendre en charge un msg (envoye a la place de l'username) ✅
 - kick doit faire l'equivalent de part d'un channel (si pas de commentaire, il faut faire un msg par defaut) ✅
 - privmsg peut prendre en charge des wildcards (ex. #*.42.fr)
-- boucle sur la lecture des messages (\r\n)
+- boucle sur la lecture des messages (\r\n) ✅
 - topic qui affiche retour chariot ✅

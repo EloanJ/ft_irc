@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/09 11:03:06 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/09 15:23:29 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -259,7 +259,7 @@ int	Server::startServer()
 							else if ((*it).find("MODE") == 0)
 								channelMode(this->_fds[i].fd, (*it));
 							else if ((*it).find("QUIT") == 0)
-								serverQuit(this->_fds[i].fd);
+								serverQuit(this->_fds[i].fd, (*it));
 						}
 						cmds.clear();
 					}
@@ -296,12 +296,22 @@ int Server::createClient(int fd, std::string cmd, int step)
 			clt->setUsernameServername(cmd);
 			break;
 	}
-	if (clt->getCreateStep() == 2 && this->findClient(clt->getNickname()) != NULL && this->findDuplicata(clt, clt->getNickname()))
+	if (clt->getCreateStep() == 2)
 	{
-		std::string ts = ":"+this->_name+" 443 "+clt->getNickname()+" "+clt->getNickname()+" :Nickname is already in use\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
-		clt->setCreateStep(-1);
+		if (clt->getNickname().size() == 0)
+		{
+			std::string ts = ":"+this->_name+" 431 "+clt->getNickname()+" "+clt->getNickname()+" :No nickname given\r\n";
+			send(fd, ts.c_str(), ts.size(), 0);
+			clt->setCreateStep(-1);
+		}
+		else if (this->findClient(clt->getNickname()) != NULL && this->findDuplicata(clt, clt->getNickname()))
+		{
+			std::string ts = ":"+this->_name+" 443 "+clt->getNickname()+" "+clt->getNickname()+" :Nickname is already in use\r\n";
+			send(fd, ts.c_str(), ts.size(), 0);
+			clt->setCreateStep(-1);
+		}		
 	}
+
 	if (clt->getCreateStep() == -1)
 	{
 		if (!clt->isAuth())
@@ -461,6 +471,7 @@ void Server::sendMSG(int fd, std::string code, std::string uname, std::string sp
 void Server::msgBroadcast(int fd, std::string msg)
 {
 	std::string chname = "";
+	std::string submsg = "";
 	size_t s_dp = msg.find(":");
 	size_t e_msg = msg.find("\r");
 	if (e_msg == std::string::npos)
@@ -477,8 +488,11 @@ void Server::msgBroadcast(int fd, std::string msg)
 			sendMSG(fd, "442", clt_send->getNickname(), chname, "You're not on that channel");
             return;
 		}
-		std::string tosend = ":"+clt_send->getNickname()+"!"+clt_send->getNickname()+"@"+clt_send->getSevname()+" PRIVMSG "+chname+" :"+msg.substr(s_dp + 1, (e_msg - 1) - s_dp)+"\r\n";
+		submsg = msg.substr(s_dp + 1, (e_msg - 1) - s_dp);
+		std::string tosend = ":"+clt_send->getNickname()+"!"+clt_send->getNickname()+"@"+clt_send->getSevname()+" PRIVMSG "+chname+" :"+submsg+"\r\n";
 		ch->sendToAll(tosend, fd);
+		if (submsg.find('!') == 0)
+			this->_bot.exclamationCommand(ch, submsg);
 	}
 	else if (clt_rec && e_msg != std::string::npos)
 	{
@@ -795,15 +809,29 @@ void Server::clearClientChannel(Client *clt)
 	}
 }
 
-void Server::serverQuit(int fd)
+void Server::serverQuit(int fd, std::string cmd)
 {
+	std::string msg = "";
+	size_t st_msg = cmd.find(' ');
+	if (st_msg == std::string::npos)
+		st_msg = cmd.find('\r');
+	if (st_msg == std::string::npos)
+		st_msg = cmd.find('\n');
+	if (st_msg != std::string::npos)
+	{
+		size_t end_msg = cmd.find('\r');
+		if (end_msg == std::string::npos)
+			end_msg = cmd.find('\n');
+		if (end_msg != std::string::npos && st_msg != end_msg)
+			msg = cmd.substr(st_msg + 2, end_msg - (st_msg + 2));
+	}
 	Client *clt = this->findClient(fd);
 	if (clt == NULL)
-		return ;
+		return ; // accessoirement, si client == NULL, on est dans la merde hein
 	for (std::map<std::string, Channel *>::iterator i = this->_channels.begin(); i != this->_channels.end(); i++)
 	{
 		if ((*i).second && (*i).second->isInChannel(clt))
-			(*i).second->leaveChannel(clt, "");
+			(*i).second->leaveChannel(clt, msg);
 	}
 	std::map<int, Client *>::iterator it = this->_clients.find(fd);
 	if ((*it).second)
