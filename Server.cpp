@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/09 15:23:29 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/12 16:27:07 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -159,10 +159,16 @@ int	Server::startServer()
 					if (c_fd < 1)
 						std::cerr<<RED<<"accept error"<<RST<<std::endl;
 					this->_fds.push_back((pollfd){c_fd, POLLIN, 0});
+					this->_clients.insert(std::make_pair(c_fd, new Client(c_fd)));
 				}
 				else
 				{
-					std::list<std::string> cmds;
+					Client *clt = this->findClient(this->_fds[i].fd);
+					if (!clt)
+					{
+						std::cerr<<RED<<"FIND CLIENT : NO CLIENT FOR CMDS\n";
+						continue ;
+					}
 					std::string totalread;
 					char buffer[1024];
 					bzero(buffer, sizeof(buffer));
@@ -181,6 +187,7 @@ int	Server::startServer()
 					std::cout<<CYAN<<"Read : "<<totalread<<RST;
 					if (n <= 0)
 					{
+						this->serverQuit(this->_fds[i].fd, "");
 						std::cout << BOLDMAGENTA << "Client disconected : " << this->_fds[i].fd << RST << std::endl;
 						close(this->_fds[i].fd);
 						std::map<int, Client *>::iterator cpos = this->_clients.find(this->_fds[i].fd);
@@ -204,7 +211,7 @@ int	Server::startServer()
 								end = totalread.find('\r', k);
 							if (end != std::string::npos)
 							{
-								cmds.push_back(totalread.substr(k, end - k));
+								clt->addCmd(totalread.substr(k, end - k));
 								while (totalread[end] != '\0' && (totalread[end] == '\r' || totalread[end] == '\n'))
 								{
 									std::cout<<BOLDRED<<"BOUCLE 2 end:"<<end<<RST<<std::endl;
@@ -214,7 +221,7 @@ int	Server::startServer()
 							}
 							else
 							{
-								cmds.push_back(totalread.substr(k, totalread.size() - k));
+								clt->addCmd(totalread.substr(k, totalread.size() - k));
 								while (totalread[k] != '\0' && (totalread[k] == '\r' || totalread[k] == '\n'))
 								{
 									std::cout<<BOLDRED<<"BOUCLE 3 k:"<<k<<RST<<std::endl;
@@ -223,45 +230,51 @@ int	Server::startServer()
 								k = totalread.size();
 							}
 						}
-						for (std::list<std::string>::iterator it = cmds.begin(); it != cmds.end(); it ++)
+						if (clt->completeCmd())
 						{
-							if ((*it).find("PASS") == 0)
+							int res = 0;
+							std::list<std::string>& clt_cmds = clt->getCmds();
+							for (std::list<std::string>::iterator it = clt_cmds.begin(); it != clt_cmds.end(); it ++)
 							{
-								if (createClient(this->_fds[i].fd, (*it), 0) < 0)
-									break;
+								if ((*it).find("PASS") == 0)
+								{
+									if ((res = createClient(this->_fds[i].fd, (*it), 0)) < 0)
+										break;
+								}
+								else if ((*it).find("NICK") == 0)
+								{
+									if ((res = createClient(this->_fds[i].fd, (*it), 1)) < 0)
+										break;
+								}
+								else if ((*it).find("USER") == 0)
+								{
+									if ((res = createClient(this->_fds[i].fd, (*it), 2)) < 0)
+										break;
+								}
+								else if ((*it).find("PING") == 0) 
+									serverPingPong(this->_fds[i].fd, true);
+								else if ((*it).find("PONG") == 0)
+									serverPingPong(this->_fds[i].fd, false);
+								else if ((*it).find("JOIN") == 0)
+									channelJoin(this->_fds[i].fd, (*it));
+								else if ((*it).find("INVITE") == 0)
+									channelInvite(this->_fds[i].fd, (*it));
+								else if ((*it).find("PRIVMSG") == 0)
+									msgBroadcast(this->_fds[i].fd, (*it));
+								else if ((*it).find("TOPIC") == 0)
+									channelTopic(this->_fds[i].fd, (*it));
+								else if ((*it).find("PART") == 0)
+									channelPart(this->_fds[i].fd, (*it));
+								else if ((*it).find("KICK") == 0)
+									channelKick(this->_fds[i].fd, (*it));
+								else if ((*it).find("MODE") == 0)
+									channelMode(this->_fds[i].fd, (*it));
+								else if ((*it).find("QUIT") == 0)
+									serverQuit(this->_fds[i].fd, (*it));
 							}
-							else if ((*it).find("NICK") == 0)
-							{
-								if (createClient(this->_fds[i].fd, (*it), 1) < 0)
-									break;
-							}
-							else if ((*it).find("USER") == 0)
-							{
-								if (createClient(this->_fds[i].fd, (*it), 2) < 0)
-									break;
-							}
-							else if ((*it).find("PING") == 0) 
-								serverPingPong(this->_fds[i].fd, true);
-							else if ((*it).find("PONG") == 0)
-								serverPingPong(this->_fds[i].fd, false);
-							else if ((*it).find("JOIN") == 0)
-								channelJoin(this->_fds[i].fd, (*it));
-							else if ((*it).find("INVITE") == 0)
-								channelInvite(this->_fds[i].fd, (*it));
-							else if ((*it).find("PRIVMSG") == 0)
-								msgBroadcast(this->_fds[i].fd, (*it));
-							else if ((*it).find("TOPIC") == 0)
-								channelTopic(this->_fds[i].fd, (*it));
-							else if ((*it).find("PART") == 0)
-								channelPart(this->_fds[i].fd, (*it));
-							else if ((*it).find("KICK") == 0)
-								channelKick(this->_fds[i].fd, (*it));
-							else if ((*it).find("MODE") == 0)
-								channelMode(this->_fds[i].fd, (*it));
-							else if ((*it).find("QUIT") == 0)
-								serverQuit(this->_fds[i].fd, (*it));
+							if (res >= 0)
+								clt->clearCmd();
 						}
-						cmds.clear();
 					}
 				}
 			}
@@ -272,10 +285,11 @@ int	Server::startServer()
 int Server::createClient(int fd, std::string cmd, int step)
 {
 	Client *clt = this->findClient(fd);
+	std::cout<<GREY<<"step :"<<step<<"creatStep :"<<clt->getCreateStep()<<RST<<std::endl;
 	if (!clt)
 	{
-		clt = new Client(fd);
-		this->_clients.insert(std::make_pair(fd, clt));
+		std::cerr<<RED<<"CREATE CLIENT : NO CLIENT FOR CMDS\n"<<RST;
+		return -1;
 	}
 	if (step != clt->getCreateStep())
 	{
@@ -283,6 +297,7 @@ int Server::createClient(int fd, std::string cmd, int step)
 		send(fd, ts.c_str(), ts.size(), 0);
 		clt->setAuth(true);
 		clt->setCreateStep(-1);
+		step = -1;
 	}
 	switch (step)
 	{
@@ -311,12 +326,21 @@ int Server::createClient(int fd, std::string cmd, int step)
 			clt->setCreateStep(-1);
 		}		
 	}
-
-	if (clt->getCreateStep() == -1)
+	if (clt->getCreateStep() < 0)
 	{
-		if (!clt->isAuth())
+		if (!clt->isAuth() && clt->getCreateStep() == -1)
 		{
-			std::string ts = ":"+this->_name+" 464 :Password incorrect\r\n";
+			std::string ts = ":"+this->_name+" - 464 :Password incorrect\r\n";
+			send(fd, ts.c_str(), ts.size(), 0);
+		}
+		else if (clt->getCreateStep() == -2)
+		{
+			std::string ts = ":"+this->_name+" 443 "+clt->getNickname()+" "+clt->getNickname()+" :Nickname is already in use\r\n";
+			send(fd, ts.c_str(), ts.size(), 0);
+		}
+		else if (clt->getCreateStep() == -3)
+		{
+			std::string ts = ":"+this->_name+" 461 :Not enough parameters\r\n";
 			send(fd, ts.c_str(), ts.size(), 0);
 		}
 		for (std::map<int, Client *>::iterator i = this->_clients.begin(); i != this->_clients.end();i++)

@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:53 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/09 10:37:56 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/12 16:26:31 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,10 @@ Client::Client(int fd)
 void Client::setPassword(std::string cmd, std::string pass)
 {
 	if (this->_createStep != 0)
+	{
+		this->_createStep = -1;
 		return ;
+	}
 	std::string password = "";
 	size_t st_pass = cmd.find(' ');
 	if (st_pass == std::string::npos)
@@ -53,7 +56,10 @@ void Client::setPassword(std::string cmd, std::string pass)
 void Client::setNickname(std::string cmd)
 {
 	if (this->_createStep != 1)
+	{
+		this->_createStep = -1;
 		return ;
+	}
 	size_t st_nname = cmd.find(' ');
 	if (st_nname == std::string::npos)
 		st_nname = cmd.find('\r');
@@ -69,12 +75,17 @@ void Client::setNickname(std::string cmd)
 	}
 	this->_createStep++;
 	std::cout<<GREY<<"Client nickname : ["<<_nickname<<"]"<<RST<<std::endl;
+	if (this->_nickname == "Bob")
+		this->_createStep = -2;
 }
 
 void Client::setUsernameServername(std::string cmd)
 {
 	if (this->_createStep != 2)
+	{
+		this->_createStep = -1;
 		return ;
+	}
 	size_t st_uname = cmd.find(':');
 	if (st_uname == std::string::npos)
 		st_uname = cmd.find('\r');
@@ -93,10 +104,44 @@ void Client::setUsernameServername(std::string cmd)
 	if (st_sn != std::string::npos)
 		this->_sevname = cmd.substr(st_sn + 1, end_sn - st_sn);
 	this->_createStep++;
+	if (this->_username.size() == 0 || this->_sevname.size() == 0)
+		this->_createStep = -3;
 	std::cout<<GREY<<"Client username : ["<<_username<<"]"<<std::endl;
 	std::cout<<GREY<<"Client servername : ["<<_sevname<<"]"<<RST<<std::endl;	
 }
 
+void Client::addCmd(std::string cmd)
+{
+	if (!this->_cmds.empty())
+	{
+		std::string& lastCmd = this->_cmds.back();
+		if (lastCmd.find('\r') == std::string::npos && lastCmd.find('\n') == std::string::npos)
+		{
+			if (cmd.find('\r') != std::string::npos || cmd.find('\n') != std::string::npos)
+			{
+				lastCmd += cmd;
+				return ;
+			}
+		}
+	}
+	this->_cmds.push_back(cmd);
+}
+
+bool Client::completeCmd()
+{
+	if (!this->_cmds.empty())
+	{
+		std::string& lastCmd = this->_cmds.back();
+		if (lastCmd.find('\r') != std::string::npos || lastCmd.find('\n') != std::string::npos)
+			return true;
+	}
+	return false;
+}
+
+void Client::clearCmd()
+{
+	this->_cmds.clear();
+}
 
 const std::string Client::getUsername() const
 {
@@ -111,6 +156,11 @@ const std::string Client::getNickname() const
 const std::string Client::getSevname() const
 {
 	return this->_sevname;
+}
+
+std::list<std::string> &Client::getCmds()
+{
+	return this->_cmds;
 }
 
 int Client::getCreateStep() const

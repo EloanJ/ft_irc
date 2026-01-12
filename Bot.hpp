@@ -3,6 +3,7 @@
 #include <string>
 #include <sys/socket.h>
 #include "Channel.hpp"
+#include <cstdlib>
 
 # define BOT 0
 # define HI 1

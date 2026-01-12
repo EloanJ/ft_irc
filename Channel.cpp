@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:59 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/08 16:43:07 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/12 16:45:14 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,6 +84,7 @@ void Channel::joinChannel(Client *clt, std::string key)
 	{
 		this->_lclients.push_back(clt);
 		this->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@"+clt->getSevname()+" JOIN :"+this->_name+"\r\n", -1);
+		this->sndTopicChannel(clt);
 		std::cout<<GREY<<"Client : ["+clt->getNickname()+"] joined ["+this->_name+"]\n"<<RST;
 	}
 }
