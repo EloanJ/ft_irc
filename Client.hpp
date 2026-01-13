@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:51 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/12 13:53:21 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/13 15:27:23 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,15 +33,15 @@ class Client
 		void							setNickname(std::string cmd);
 		void							setUsernameServername(std::string cmd);
 		void							setCreateStep(int step);
-		bool							isAuth() const;
 		void							setAuth(bool auth);
 		void							addCmd(std::string cmd);
-		bool							completeCmd();
 		void							clearCmd();
+		bool							isAuth() const;
+		bool							completeCmd();
 		int								getCreateStep() const;
 		int								getFd() const;
 		const std::string 				getUsername() const;
 		const std::string 				getNickname() const;
 		const std::string 				getSevname() const;
-		std::list<std::string>	&getCmds();
+		std::list<std::string>			&getCmds();
 };

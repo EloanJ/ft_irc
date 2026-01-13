@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:59 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/12 16:45:14 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/13 15:55:06 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,10 +22,7 @@ Channel::Channel(std::string name, Client* clt, std::string *sname)
 	this->_blimit = false;
 	this->_bkey = false;
 	if (clt != NULL)
-	{
-		this->_lclients.push_back(clt);
 		this->_operators.push_back(clt);
-	}
 }
 
 Channel::~Channel()
@@ -84,7 +81,9 @@ void Channel::joinChannel(Client *clt, std::string key)
 	{
 		this->_lclients.push_back(clt);
 		this->sendToAll(":"+clt->getNickname()+"!"+clt->getNickname()+"@"+clt->getSevname()+" JOIN :"+this->_name+"\r\n", -1);
-		this->sndTopicChannel(clt);
+		if (this->_stopic.size() > 0)
+			this->sndTopicChannel(clt);
+		this->sndLClients(clt);
 		std::cout<<GREY<<"Client : ["+clt->getNickname()+"] joined ["+this->_name+"]\n"<<RST;
 	}
 }
@@ -138,12 +137,10 @@ void Channel::kickChannel(Client *clt_op, Client *clt_tk, std::string reason)
 	{
 		if (!this->isInChannel(clt_tk))
 		{
-			std::string to_send = ":"+(*_sname)+" 441 " +clt_tk->getNickname()+" "+this->_name+" :They aren't on that channel\r\n"; // not in channel : ERR_USERNOTINCHANNEL
+			std::string to_send = ":"+(*_sname)+" 441 " +clt_tk->getNickname()+" "+this->_name+" :They aren't on that channel\r\n";
 			send(clt_op->getFd(), to_send.c_str(), to_send.size(), 0);
 			return ;
 		}
-		if (reason.size() == 0)
-			reason = "Because the operator's supreme authority cannot be contradicted.";
 		std::string ts = ":"+clt_op->getNickname()+"!"+clt_tk->getNickname()+"@"+clt_tk->getSevname()+" KICK "+this->_name+" "+clt_tk->getNickname()+" :"+reason+"\r\n";
 		sendToAll(ts, -1);
 		for (std::vector<Client *>::iterator it = this->_lclients.begin(); it != this->_lclients.end(); it++)
@@ -166,7 +163,7 @@ void Channel::kickChannel(Client *clt_op, Client *clt_tk, std::string reason)
 	}
 	else
 	{
-		std::string to_send = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n"; // not operator : ERR_CHANOPRIVSNEEDED
+		std::string to_send = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n";
 		send(clt_op->getFd(), to_send.c_str(), to_send.size(), 0);
 	}
 }
@@ -176,7 +173,7 @@ void Channel::inviteChannel(Client *clt_snd, Client *clt_rec)
 	std::cout<<GREY<<"INVITE -- STEP 2\n"<<RST;
 	if (this->isInChannel(clt_snd) && !this->isInChannel(clt_rec))
 	{
-		if (!this->_invite || (this->_invite && this->isOperator(clt_snd))) // channel is open or in invite-only mode
+		if (!this->_invite || (this->_invite && this->isOperator(clt_snd)))
 		{
 			std::cout<<GREY<<"clt_snd in channel | clt_rec not in channel"<<RST<<std::endl;
 			std::string ts_rec = ":"+clt_snd->getNickname()+"!"+clt_rec->getNickname()+"@"+clt_rec->getSevname()+" INVITE "+clt_rec->getNickname()+" "+this->_name+"\r\n";
@@ -187,20 +184,20 @@ void Channel::inviteChannel(Client *clt_snd, Client *clt_rec)
 		else
 		{
 			std::cout<<GREY<<"clt_snd isn't a channel operator"<<RST<<std::endl;
-			std::string to_send = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n"; // not operator : ERR_CHANOPRIVSNEEDED
+			std::string to_send = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n";
 			send(clt_snd->getFd(), to_send.c_str(), to_send.size(), 0);
 		}
 	}
 	else if (!this->isInChannel(clt_snd))
 	{
 		std::cout<<GREY<<"clt_snd not in channel"<<RST<<std::endl;
-		std::string to_send = ":"+(*_sname)+" 442 "+this->_name+" :You're not on that channel\r\n"; // not on channel : ERR_NOTONCHANNEL
+		std::string to_send = ":"+(*_sname)+" 442 "+this->_name+" :You're not on that channel\r\n";
 		send(clt_snd->getFd(), to_send.c_str(), to_send.size(), 0);
 	}
 	else if (this->isInChannel(clt_rec))
 	{
 		std::cout<<GREY<<"clt_snd in channel | clt_rec in channel"<<RST<<std::endl;
-		std::string to_send = ":"+(*_sname)+" 443 "+clt_rec->getNickname()+" "+this->_name+" :is already on channel\r\n"; // client already on channel : ERR_USERONCHANNEL
+		std::string to_send = ":"+(*_sname)+" 443 "+clt_rec->getNickname()+" "+this->_name+" :is already on channel\r\n";
 		send(clt_snd->getFd(), to_send.c_str(), to_send.size(), 0);
 	}
 }
@@ -212,151 +209,160 @@ void Channel::modeChannel(Client *clt, std::string md, std::string tp)
 	if (clt)
 	{
 		std::cout<<"CLIENT FOUND"<<std::endl;
-		if (this->isOperator(clt))
+		if (md.size() == 0)
+			this->sndModeChannel(clt, false);
+		else if (this->isOperator(clt))
 		{
 			std::cout<<"CLIENT IS OPERATOR"<<std::endl;
-			if (md.size() != 3) // limitation a deux caracteres pour mode (+/-, itkol et \0)
+			if (md.size() != 3) // limitation of 2 caracters par mode (+/-, itkol et \0)
 			{
 				std::cout<<"MODE IS CORRECT"<<std::endl;
 				if (md.find('+') != std::string::npos && md.find('+') == 0)
-				{
-					std::cout<<"MODE IS +"<<std::endl;
-					if (md[1] == 'i' && !this->_invite)
-						this->_invite = true;
-					else if (md[1] == 't' && !this->_botopic)
-						this->_botopic = true;
-					else if (md[1] == 'k')
-					{
-						if (!this->_bkey && !this->_skey.size() && tp.size() > 0)
-						{
-							this->_bkey = true;
-							this->_skey = tp;
-						}
-						else if (this->_bkey)
-						{
-							ts = ":"+(*_sname)+" 467 "+clt->getNickname()+" "+this->_name+" :Channel key already set\r\n";
-							send(clt->getFd(), ts.c_str(), ts.size(), 0);
-						}
-						else if (tp.size() == 0)
-						{
-							ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" +k :Not enough parameters\r\n";
-							send(clt->getFd(), ts.c_str(), ts.size(), 0);
-						}
-					}
-					else if (md[1] == 'o')
-					{
-						if (tp.size() == 0)
-						{
-							std::cout<<GREY<<"need more params +o"<<RST<<std::endl;
-							ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" +o :Not enough parameters\r\n";
-							send(clt->getFd(), ts.c_str(), ts.size(), 0);							
-						}
-						else
-						{
-							Client *clt_add = this->isInChannel(tp);
-							if (!clt_add)
-							{
-								ts = ":"+(*_sname)+" 441 "+tp+" "+this->_name+" :They aren't on that channel\r\n";
-								send(clt->getFd(), ts.c_str(), ts.size(), 0);
-							}
-							if (clt_add && !this->isOperator(clt_add))
-								this->_operators.push_back(clt_add);
-						}
-					}
-					else if (md[1] == 'l')
-					{
-						if (!this->_blimit && tp.size() != 0)
-						{
-							int l = atoi(tp.c_str());
-							if (l > 0)
-							{
-								this->_blimit = true;
-								this->_nlimit = l;
-							}
-						}
-						else if (tp.size() == 0)
-						{
-							ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" +l :Not enough parameters\r\n";
-							send(clt->getFd(), ts.c_str(), ts.size(), 0);
-						}
-					}
-					else
-					{
-						ts = ":"+(*_sname)+" 472 "+md.substr(1, (md.size() - 1))+" :is unknown mode char to me for "+this->_name+"\r\n"; // unknown mode : ERR_UNKNOWNMODE
-						std::cout<<BOLDMAGENTA<<ts<<std::endl<<RST;
-						send(clt->getFd(), ts.c_str(), ts.size(), 0);
-					}
-					this->sndModeChannel(clt);
-				}
+					this->modeAdd(clt, md, tp);
 				else if (md.find('-') != std::string::npos && md.find('-') == 0)
-				{
-					std::cout<<"MODE IS -"<<std::endl;
-					if (md[1] == 'i' && this->_invite)
-						this->_invite = false;
-					else if (md[1] == 't' && this->_botopic)
-						this->_botopic = false;
-					else if (md[1] == 'k')
-					{
-						if (this->_bkey && this->_skey.size() > 0 && tp == this->_skey)
-						{
-							this->_bkey = false;
-							this->_skey.clear();
-						}
-						else if (tp.size() == 0)
-						{
-							std::cout<<GREY<<"need more params -k"<<RST<<std::endl;
-							ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" -k :Not enough parameters\r\n"; 
-							send(clt->getFd(), ts.c_str(), ts.size(), 0);		
-						}
-					}
-					else if (md[1] == 'o')
-					{
-						Client *clt_rm = this->isInChannel(tp);
-						if (clt_rm && this->isOperator(clt_rm))
-						{
-							for (std::vector<Client *>::iterator i = this->_operators.begin(); i != this->_operators.end(); i++)
-							{
-								if ((*i) == clt_rm)
-								{
-									this->_operators.erase(i);
-									break;
-								}
-							}
-						}
-					}
-					else if (md[1] == 'l')
-					{
-						if (this->_blimit)
-						{
-							this->_blimit = false;
-							this->_nlimit = 0;
-						}
-					}
-					else
-					{
-						ts = ":"+(*_sname)+" 472 "+md.substr(1, (md.size() - 1))+" :is unknown mode char to me for "+this->_name+"\r\n"; // unknown mode : ERR_UNKNOWNMODE
-						send(clt->getFd(), ts.c_str(), ts.size(), 0);
-					}
-					this->sndModeChannel(clt);
-				}
+					this->modeDrop(clt, md, tp);
 			}
 			else
 			{
-				ts = ":"+(*_sname)+" 472 "+md.substr(1, (md.size() - 1))+" :is unknown mode char to me for "+this->_name+"\r\n"; // unknown mode : ERR_UNKNOWNMODE
+				ts = ":"+(*_sname)+" 472 "+md.substr(1, (md.size() - 1))+" :is unknown mode char to me for "+this->_name+"\r\n";
 				send(clt->getFd(), ts.c_str(), ts.size(), 0);
 			}
 		}
 		else
 		{
-			ts = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n"; // not operator : ERR_CHANOPRIVSNEEDED
+			ts = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n";
 			send(clt->getFd(), ts.c_str(), ts.size(), 0);
 		}
 	}
 	std::cout<<RST;
-	// else (peut-etre) raise une exception, le client doit clairement exister ici
 }
 
-void Channel::sndModeChannel(Client *clt)
+void Channel::modeAdd(Client *clt, std::string md, std::string tp)
+{
+	std::string ts;
+	std::cout<<"MODE IS +"<<std::endl;
+	if (md[1] == 'i')
+		this->_invite = true;
+	else if (md[1] == 't')
+		this->_botopic = true;
+	else if (md[1] == 'k')
+	{
+		if (!this->_bkey && !this->_skey.size() && tp.size() > 0)
+		{
+			this->_bkey = true;
+			this->_skey = tp;
+		}
+		else if (this->_bkey)
+		{
+			ts = ":"+(*_sname)+" 467 "+clt->getNickname()+" "+this->_name+" :Channel key already set\r\n";
+			send(clt->getFd(), ts.c_str(), ts.size(), 0);
+		}
+		else if (tp.size() == 0)
+		{
+			ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" +k :Not enough parameters\r\n";
+			send(clt->getFd(), ts.c_str(), ts.size(), 0);
+		}
+	}
+	else if (md[1] == 'o')
+	{
+		if (tp.size() == 0)
+		{
+			std::cout<<GREY<<"need more params +o"<<RST<<std::endl;
+			ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" +o :Not enough parameters\r\n";
+			send(clt->getFd(), ts.c_str(), ts.size(), 0);							
+		}
+		else
+		{
+			Client *clt_add = this->isInChannel(tp);
+			if (!clt_add)
+			{
+				ts = ":"+(*_sname)+" 441 "+tp+" "+this->_name+" :They aren't on that channel\r\n";
+				send(clt->getFd(), ts.c_str(), ts.size(), 0);
+			}
+			if (clt_add && !this->isOperator(clt_add))
+				this->_operators.push_back(clt_add);
+		}
+	}
+	else if (md[1] == 'l')
+	{
+		if (!this->_blimit && tp.size() != 0)
+		{
+			int l = atoi(tp.c_str());
+			if (l > 0)
+			{
+				this->_blimit = true;
+				this->_nlimit = l;
+			}
+		}
+		else if (tp.size() == 0)
+		{
+			ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" +l :Not enough parameters\r\n";
+			send(clt->getFd(), ts.c_str(), ts.size(), 0);
+		}
+	}
+	else
+	{
+		ts = ":"+(*_sname)+" 472 "+md.substr(1, (md.size() - 1))+" :is unknown mode char to me for "+this->_name+"\r\n";
+		std::cout<<BOLDMAGENTA<<ts<<std::endl<<RST;
+		send(clt->getFd(), ts.c_str(), ts.size(), 0);
+	}
+	this->sndModeChannel(clt, true);
+}
+
+void Channel::modeDrop(Client *clt, std::string md, std::string tp)
+{
+	std::string ts;
+	std::cout<<"MODE IS -"<<std::endl;
+	if (md[1] == 'i')
+		this->_invite = false;
+	else if (md[1] == 't')
+		this->_botopic = false;
+	else if (md[1] == 'k')
+	{
+		if (this->_bkey && this->_skey.size() > 0 && tp == this->_skey)
+		{
+			this->_bkey = false;
+			this->_skey.clear();
+		}
+		else if (tp.size() == 0)
+		{
+			std::cout<<GREY<<"need more params -k"<<RST<<std::endl;
+			ts = ":"+(*_sname)+" 461 "+clt->getNickname()+" -k :Not enough parameters\r\n"; 
+			send(clt->getFd(), ts.c_str(), ts.size(), 0);		
+		}
+	}
+	else if (md[1] == 'o')
+	{
+		Client *clt_rm = this->isInChannel(tp);
+		if (clt_rm && this->isOperator(clt_rm))
+		{
+			for (std::vector<Client *>::iterator i = this->_operators.begin(); i != this->_operators.end(); i++)
+			{
+				if ((*i) == clt_rm)
+				{
+					this->_operators.erase(i);
+					break;
+				}
+			}
+		}
+	}
+	else if (md[1] == 'l')
+	{
+		if (this->_blimit)
+		{
+			this->_blimit = false;
+			this->_nlimit = 0;
+		}
+	}
+	else
+	{
+		ts = ":"+(*_sname)+" 472 "+md.substr(1, (md.size() - 1))+" :is unknown mode char to me for "+this->_name+"\r\n";
+		send(clt->getFd(), ts.c_str(), ts.size(), 0);
+	}
+	this->sndModeChannel(clt, true);
+}
+
+void Channel::sndModeChannel(Client *clt, bool sndAll)
 {
 	bool first = true;
 	std::string ts = ":"+(*_sname)+" 324 "+clt->getNickname()+" "+this->_name;
@@ -402,7 +408,10 @@ void Channel::sndModeChannel(Client *clt)
 	}
 	ts += "\r\n";
 	std::cout<<"mode send : ["<<ts<<"]"<<std::endl;
-	send(clt->getFd(), ts.c_str(), ts.size(), 0);
+	if (sndAll)
+		this->sendToAll(ts, -1);
+	else
+		send(clt->getFd(), ts.c_str(), ts.size(), 0);
 }
 
 void Channel::sndTopicChannel(Client *clt)
@@ -415,6 +424,25 @@ void Channel::sndTopicChannel(Client *clt)
 		to_send = ":"+(*_sname)+" 331 "+clt->getNickname()+" "+this->_name+" :No topic is set\r\n";
 	std::cout<<GREY<<"TO SEND : "+to_send+"\n"<<RST;
 	send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
+}
+
+void Channel::sndLClients(Client *clt)
+{
+	std::string ts = ":"+(*_sname)+" 353 "+clt->getNickname()+" = "+this->_name+" :";
+	for (std::vector<Client *>::const_iterator it = this->_lclients.begin(); it != this->_lclients.end(); it ++)
+	{
+		if (this->isOperator((*it)))
+			ts += "@"+(*it)->getNickname();
+		else
+			ts += (*it)->getNickname();
+		if (it + 1 != this->_lclients.end())
+			ts += " ";
+	}
+	ts += "\r\n";
+	std::cout<<GREY<<"user lst ["<<ts<<"]"<<RST<<std::endl;
+	send(clt->getFd(), ts.c_str(), ts.size(), 0);
+	ts = ":"+(*_sname)+" 366 "+clt->getNickname()+" "+this->_name+" :End of NAMES list\r\n";
+	send(clt->getFd(), ts.c_str(), ts.size(), 0);
 }
 
 void Channel::sndTopicAll()
@@ -434,18 +462,26 @@ void Channel::setTopicChannel(Client *clt, std::string nname)
 {
 	if ((this->isInChannel(clt) && this->isOperator(clt)) || (this->isInChannel(clt) && !this->_botopic))
 	{
-		this->_stopic = nname;
-		this->_btopic = !this->_btopic;
+		if (nname.size() == 0)
+		{
+			this->_stopic = nname;
+			this->_btopic = false;
+		}
+		else
+		{
+			this->_stopic = nname;
+			this->_btopic = true;
+		}
 		this->sndTopicAll();
 	}
 	else if (this->isInChannel(clt) && !this->isOperator(clt))
 	{
-		std::string to_send = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n"; // not operator : ERR_CHANOPRIVSNEEDED
+		std::string to_send = ":"+(*_sname)+" 482 "+this->_name+" :You're not channel operator\r\n";
 		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
 	}
 	else if (!this->isInChannel(clt))
 	{
-		std::string to_send = ":"+(*_sname)+" 442 "+this->_name+" :You're not on that channel\r\n"; // not on channel : ERR_NOTONCHANNEL
+		std::string to_send = ":"+(*_sname)+" 442 "+this->_name+" :You're not on that channel\r\n";
 		send(clt->getFd(), to_send.c_str(), to_send.size(), 0);
 	}
 }

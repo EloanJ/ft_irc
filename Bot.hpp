@@ -9,7 +9,8 @@
 # define HI 1
 # define TREE 2
 # define COLOR 3
-# define TABLE 4
+# define RAINBOW 4
+# define TABLE 5
 
 class Bot
 {

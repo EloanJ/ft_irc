@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
+/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/09 15:23:29 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/13 15:19:06 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,17 +44,17 @@ class Server
 	public:
 		Server(char* port, std::string pswd, std::string name);
 		~Server();
+		static void signalServer(int sig);
 		int			verifInput(std::string port);
 		int			startServer();
 		int			createClient(int fd, std::string cmd, int step);
+		int			badLogin(Client *clt, int fd);
 		bool		findDuplicata(Client *clt, std::string name);
 		void		serverPingPong(int fd, bool pingorpong);
 		Channel		*findChannel(std::string name);
 		Client		*findClient(int fd);
 		Client		*findClient(std::string name);
 		void		msgBroadcast(int fd, std::string msg);
-		void		sendMSG(int fd, std::string code, std::string uname, std::string spm, std::string tpm) const;
-		static		void signalServer(int sig);
 		void		channelJoin(int fd, std::string cmd);
 		void 		channelPart(int fd, std::string cmd);
 		void		channelKick(int fd, std::string cmd);
@@ -63,4 +63,5 @@ class Server
 		void		channelMode(int fd, std::string cmd);
 		void		clearClientChannel(Client *clt);
 		void		serverQuit(int fd, std::string cmd);
+		void		commandDispatcher(Client *clt, int i);
 };

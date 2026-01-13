@@ -6,7 +6,7 @@
 /*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:53 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/12 16:26:31 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/13 14:30:00 by ejonsery         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -117,11 +117,8 @@ void Client::addCmd(std::string cmd)
 		std::string& lastCmd = this->_cmds.back();
 		if (lastCmd.find('\r') == std::string::npos && lastCmd.find('\n') == std::string::npos)
 		{
-			if (cmd.find('\r') != std::string::npos || cmd.find('\n') != std::string::npos)
-			{
-				lastCmd += cmd;
-				return ;
-			}
+			lastCmd += cmd;
+			return ;
 		}
 	}
 	this->_cmds.push_back(cmd);

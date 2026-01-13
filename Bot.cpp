@@ -7,10 +7,10 @@ Bot::~Bot() {}
 void Bot::exclamationCommand(Channel *ch, std::string cmd)
 {
 	std::cout<<GREY<<"BOT CALLED WITH "<<cmd<<std::endl;
-	std::string cmds[5] = {"BOT", "HI", "TREE", "COLOR", "TABLE"};
+	std::string cmds[6] = {"BOT", "HI", "TREE", "COLOR", "RAINBOW", "TABLE"};
 	std::string sub_cmd = cmd.substr(1, cmd.size() - 1);
 	std::cout<<GREY<<"BOT CALLED WITH ["<<cmd<<"]\nSUBSTR : ["<<sub_cmd<<"]\n"<<RST<<std::endl;
-	for (size_t i = 0; i < 5; i++)
+	for (size_t i = 0; i < 6; i++)
 		if (cmds[i] == sub_cmd)
 			return this->executeCommand(ch, i);
 	return this->executeCommand(ch, -1);
@@ -46,7 +46,20 @@ void Bot::executeCommand(Channel *ch, int type)
 			ch->sendToAll(ts, -1);
 			break;
 		case COLOR :
-			ts += "To use color with IRSSI press ctrl + c and enter a number before yout message [C2Your message] 0->blanc, 1->noir, 2->bleu, 3->vert, 4->rouge clair, 5->rouge, 6->violet, 7->orange, 8->jaune, 9->vert clair, 10->cyan, 11->cyan clair, 12->bleu clair, 13->rose, 14->gris, 15->gris clair\r\n";
+			ts += "To use color with IRSSI press ctrl + c and enter a number before yout message [C2Your message] 0->white, 1->black, 2->blue, 3->gree, 4->light-red, 5->red, 6->purple, 7->orange, 8->yellow, 9->light-green, 10->cyan, 11->light-cyan, 12->light-blue, 13->pink, 14->gray, 15->light-gray\r\n";
+			ch->sendToAll(ts, -1);
+			break;
+		case RAINBOW :
+			ts += RED;
+			ts += "HI ";
+			ts += GREEN;
+			ts += "IT'S ";
+			ts += YELLOW;
+			ts += "ME ";
+			ts += BOLDBLUE;
+			ts += "BOB !";
+			ts += RST;
+			ts += "\r\n";
 			ch->sendToAll(ts, -1);
 			break;
 		case TABLE :

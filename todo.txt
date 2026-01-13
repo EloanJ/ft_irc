@@ -21,7 +21,7 @@
 - MODE ✅
 - topic ✅
 - kick ✅
-- verif all error message
+- verif all error message ✅
 - nick 431 ERR_NONICKNAMEGIVEN ✅
 - nick 432 ERR_ERRONEUSNICKNAME
 - invite 341 RPL_INVITING ✅
@@ -34,16 +34,14 @@ Things to verify :
 - quit peut prendre en charge un msg mais aucune error ✅
 - part peut prendre en charge un msg (envoye a la place de l'username) ✅
 - kick doit faire l'equivalent de part d'un channel (si pas de commentaire, il faut faire un msg par defaut) ✅
-- privmsg peut prendre en charge des wildcards (ex. #*.42.fr)
 - boucle sur la lecture des messages (\r\n) ✅
 - topic qui affiche retour chariot ✅
 
 NB :
 - Stocker la liste des commnandes dans le client plutot que dans la boucle principale et attendre le /r/n avant de considerer la commande complete ✅
-- Peut-etre generer un Client pour le bot (sinon, deux bobs peuvent rejoindre le meme channel...) (peut-etre rendre le bot channel op et donner une chance sur deux d'obtenir le role ?)
 - ERR_NEEDMOREPARAMS on user message ✅
 - Irssi qui n'affiche plus password incorrect mais juste incorrect (sans doute parce que pas le nickname a ce moment) ✅
 - send topic ✅
-- quit ne ferme pas correctement la connexion
-- segfault lors de la deconnexion (aleatoire)
-- (voir avec Noe si il a fait RPL_NAMREPLY sur JOIN)
+- quit ne ferme pas correctement la connexion ✅
+- segfault lors de la deconnexion (aleatoire) ✅
+- (voir avec Noe si il a fait RPL_NAMREPLY sur JOIN) ✅
