@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/13 15:42:39 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/15 13:29:51 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -140,7 +140,7 @@ int	Server::startServer()
 				if (this->_fds[j].fd != this->_serverfd)
 				{
 					std::string ping = "PING :"+this->_name+"\r\n";
-					send(this->_fds[j].fd, ping.c_str(), ping.size(), 0);
+					safeSend(this->_fds[j].fd, ping);
 					std::cout<<GREEN<<"PING send to : "<<this->_fds[j].fd<<RST<<std::endl;
 				}
 			}
@@ -281,7 +281,7 @@ int Server::createClient(int fd, std::string cmd, int step)
 	if (step != clt->getCreateStep())
 	{
 		std::string ts = ":"+this->_name+" 461 :Not enough parameters\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 		clt->setAuth(true);
 		clt->setCreateStep(-1);
 		step = -1;
@@ -303,13 +303,13 @@ int Server::createClient(int fd, std::string cmd, int step)
 		if (clt->getNickname().size() == 0)
 		{
 			std::string ts = ":"+this->_name+" 431 "+clt->getNickname()+" "+clt->getNickname()+" :No nickname given\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 			clt->setCreateStep(-1);
 		}
 		else if (this->findClient(clt->getNickname()) != NULL && this->findDuplicata(clt, clt->getNickname()))
 		{
 			std::string ts = ":"+this->_name+" 443 "+clt->getNickname()+" "+clt->getNickname()+" :Nickname is already in use\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 			clt->setCreateStep(-1);
 		}		
 	}
@@ -321,10 +321,10 @@ int Server::createClient(int fd, std::string cmd, int step)
 		std::string m2 = ":" + this->_name + " 002 "+clt->getNickname()+" :Your host is " + this->_name + ", running version 4.2\r\n";
 		std::string m3 = ":" + this->_name + " 003 "+clt->getNickname()+" :This server was created "+ctime(&(this->_sdate))+"\r\n";
 		std::string m4 = ":" + this->_name + " 004 "+clt->getNickname()+ " " + this->_name + " 4.2 - itkol\r\n";
-		send(fd, m1.c_str(), m1.size(), 0);
-		send(fd, m2.c_str(), m2.size(), 0);
-		send(fd, m3.c_str(), m3.size(), 0);
-		send(fd, m4.c_str(), m4.size(), 0);
+		safeSend(fd, m1);
+		safeSend(fd, m2);
+		safeSend(fd, m3);
+		safeSend(fd, m4);
 		std::cout<<YELLOW<<"Client: "<<clt->getNickname()<<" client created\n"<<RST;
 	}
 	return clt->getCreateStep();
@@ -335,17 +335,17 @@ int Server::badLogin(Client *clt, int fd)
 	if (!clt->isAuth() && clt->getCreateStep() == -1)
 	{
 		std::string ts = ":"+this->_name+" - 464 :Password incorrect\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 	else if (clt->getCreateStep() == -2)
 	{
 		std::string ts = ":"+this->_name+" 443 "+clt->getNickname()+" "+clt->getNickname()+" :Nickname is already in use\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 	else if (clt->getCreateStep() == -3)
 	{
 		std::string ts = ":"+this->_name+" 461 :Not enough parameters\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 	for (std::map<int, Client *>::iterator i = this->_clients.begin(); i != this->_clients.end();i++)
 	{
@@ -385,7 +385,7 @@ void Server::serverPingPong(int fd, bool pingorpong)
 	else if (pingorpong)
 	{
 		std::string ping = "PONG :"+this->_name+"\r\n";
-		send(fd, ping.c_str(), ping.size(), 0);
+		safeSend(fd, ping);
 		std::cout<<GREEN<<"PONG send to : "<<fd<<RST<<std::endl;
 	}
 }
@@ -435,7 +435,7 @@ void Server::msgBroadcast(int fd, std::string msg)
 		if (!ch->isInChannel(clt_send))
 		{
 			std::string to_send = ":"+this->_name+" 442 "+chname+" :You're not on that channel\r\n";
-			send(fd, to_send.c_str(), to_send.size(), 0);
+			safeSend(fd, to_send);
             return;
 		}
 		submsg = msg.substr(s_dp + 1, (e_msg - 1) - s_dp);
@@ -449,7 +449,7 @@ void Server::msgBroadcast(int fd, std::string msg)
 		if (clt_send)
 		{
 			std::string tosend = ":"+clt_send->getNickname()+"!"+clt_rec->getNickname()+"@"+clt_rec->getSevname()+" PRIVMSG "+chname+" :"+msg.substr(s_dp + 1, (e_msg - 1) - s_dp)+"\r\n";
-			int n = send(clt_rec->getFd(), tosend.c_str(), tosend.size(), 0);
+			int n = safeSend(clt_rec->getFd(), tosend);
 			std::cout<<YELLOW<<"Private Message : "<<clt_send->getUsername()<<" to "<<clt_rec->getUsername()<<RST<<std::endl;
 			std::cout<<YELLOW<<"Private Data : "<<n<<tosend<<RST<<std::endl;
 		}
@@ -457,7 +457,7 @@ void Server::msgBroadcast(int fd, std::string msg)
 	else if (!clt_rec && clt_send)
 	{
 		std::string ts = ":"+this->_name+" 401 "+clt_send->getNickname()+" :No such nick/channel\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 }
 
@@ -505,7 +505,7 @@ void Server::channelJoin(int fd, std::string cmd)
 	if (clt && ch_name.size() == 0)
 	{
 		std::string ts = ":"+this->_name+" 461 "+clt->getNickname()+" JOIN :Not enough paramaters\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 	else if (clt && ch)
 		ch->joinChannel(clt, key);
@@ -522,7 +522,7 @@ void Server::channelPart(int fd, std::string cmd)
 {
 	std::cout<<BOLDYELLOW<<"channelPart called"<<RST<<std::endl;
 	std::string ch_name = "";
-	std::string reason = "";
+	std::string reason = "Bye bye 👋";
 
 	size_t part_pos = cmd.find("PART ");
 	if (part_pos != std::string::npos)
@@ -546,7 +546,7 @@ void Server::channelPart(int fd, std::string cmd)
 					size_t r_end = cmd.find('\r', r_st);
 					if (r_end == std::string::npos)
 						r_end = cmd.find('\n', r_st);
-					if (r_end != std::string::npos)
+					if (r_end != std::string::npos && (r_end - r_st != 1))
 						reason = cmd.substr(r_st + 1, (r_end - r_st) - 1);
 				}
 			}
@@ -564,13 +564,13 @@ void Server::channelPart(int fd, std::string cmd)
 		{
 			std::cout<<"ch not find without #"<<std::endl;
 			std::string ts = ":"+this->_name+" 403 "+clt->getNickname()+" "+ch_name+" :No such channel\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 			return ;
 		}
 		if (!ch->isInChannel(clt))
 		{
 			std::string to_send = ":"+this->_name+" 442 "+ch_name+" :You're not on that channel\r\n";
-			send(fd, to_send.c_str(), to_send.size(), 0);
+			safeSend(fd, to_send);
 			return ;
 		}
 		ch->leaveChannel(clt, reason);
@@ -581,7 +581,7 @@ void Server::channelPart(int fd, std::string cmd)
         if (clt)
 		{
 			std::string ts = ":"+this->_name+" 461 "+clt->getNickname()+" PART :Not enough paramaters\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 		}
 	}
 }
@@ -614,7 +614,7 @@ void Server::channelKick(int fd, std::string cmd)
 						size_t r_end = cmd.find('\r', r_st);
 						if (r_end == std::string::npos)
 							r_end = cmd.find('\n', r_st);
-						if (r_end != std::string::npos)
+						if (r_end != std::string::npos && (r_end - r_st != 1))
 							reason = cmd.substr(r_st + 1, (r_end - r_st) - 1);						
 					}
 
@@ -632,12 +632,12 @@ void Server::channelKick(int fd, std::string cmd)
 		if (!clt_tk && clt_op)
 		{
 			std::string ts = ":"+this->_name+" 401 "+clt_op->getNickname()+" :No such nick/channel\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 		}
 		else if (clt_op && (!chn || !clt_op))
 		{
 			std::string ts = ":"+this->_name+" 461 "+clt_op->getNickname()+" KICK :Not enough paramaters\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 		}
 		else if (chn && clt_op && clt_tk)
 			chn->kickChannel(clt_op, clt_tk, reason);
@@ -681,7 +681,7 @@ void Server::channelInvite(int fd, std::string cmd)
 		if (!clt_rec)
 		{
 			std::string ts = ":"+this->_name+" 401 "+clti_name+" :No such nick/channel\r\n";
-			send(fd, ts.c_str(), ts.size(), 0);
+			safeSend(fd, ts);
 		}
 		if (chn && clt_snd && clt_rec)
 			chn->inviteChannel(clt_snd, clt_rec);
@@ -689,7 +689,7 @@ void Server::channelInvite(int fd, std::string cmd)
 	else if (clt_snd && (ch_name.size() == 0 || clti_name.size() == 0))
 	{
 		std::string ts = ":"+this->_name+" 461 "+clt_snd->getNickname()+" INVITE :Not enough paramaters\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 }
 
@@ -747,7 +747,7 @@ void Server::channelTopic(int fd, std::string cmd)
 	else if (clt && !ch && ch_name.size() == 0)
 	{
 		std::string ts = ":"+this->_name+" 461 "+clt->getNickname()+" TOPIC :Not enough paramaters\r\n";
-		send(fd, ts.c_str(), ts.size(), 0);
+		safeSend(fd, ts);
 	}
 }
 
@@ -813,7 +813,7 @@ void Server::channelMode(int fd, std::string cmd)
 	else if (!ch && clt && cmd.find(clt->getNickname()) == std::string::npos)
 	{
 		std::string ts = ":"+this->_name+" 403 "+clt->getNickname()+" "+ch_name+" :No such channel\r\n";
-		send(clt->getFd(), ts.c_str(), ts.size(), 0);
+		safeSend(clt->getFd(), ts);
 	}
 }
 

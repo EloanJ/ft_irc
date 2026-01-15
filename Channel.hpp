@@ -3,16 +3,16 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:56 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/13 15:47:08 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/14 13:33:23 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 #include "Client.hpp"
-#include <sys/socket.h>
+#include "safeSend.hpp"
 #include <vector>
 #include <map>
 #include <sstream>

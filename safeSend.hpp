@@ -1,17 +1,19 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   Message.cpp                                        :+:      :+:    :+:   */
+/*   safeSend.hpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/12/03 12:56:48 by vduarte           #+#    #+#             */
-/*   Updated: 2025/12/03 13:10:14 by vduarte          ###   ########.fr       */
+/*   Created: 2026/01/14 12:21:48 by vduarte           #+#    #+#             */
+/*   Updated: 2026/01/14 12:23:07 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Message.hpp"
+#pragma once
 
-Message::Message(std::string msg, Client &clt) : _message(msg), _client(clt) {}
+#include <iostream>
+#include <sys/socket.h>
+#include "color.hpp"
 
-Message::~Message() {}
+ssize_t safeSend(int fd, std::string ts);

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ejonsery <ejonsery@student.42.fr>          +#+  +:+       +#+        */
+/*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/13 15:19:06 by ejonsery         ###   ########.fr       */
+/*   Updated: 2026/01/14 13:33:06 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <poll.h>
 #include <unistd.h>
 #include <signal.h>
@@ -24,6 +23,7 @@
 #include <map>
 #include <string>
 #include <ctime>
+#include "safeSend.hpp"
 #include "Bot.hpp"
 #include "Channel.hpp"
 #include "Client.hpp"
