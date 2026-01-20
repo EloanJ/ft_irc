@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:26:27 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/14 13:33:06 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/20 11:41:36 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,10 +50,12 @@ class Server
 		int			createClient(int fd, std::string cmd, int step);
 		int			badLogin(Client *clt, int fd);
 		bool		findDuplicata(Client *clt, std::string name);
-		void		serverPingPong(int fd, bool pingorpong);
+		bool		isCorrectName(std::string name, bool channel);
 		Channel		*findChannel(std::string name);
 		Client		*findClient(int fd);
 		Client		*findClient(std::string name);
+		void		unkownCommand(Client *clt, std::string cmd);
+		void		serverPingPong(int fd, bool pingorpong);
 		void		msgBroadcast(int fd, std::string msg);
 		void		channelJoin(int fd, std::string cmd);
 		void 		channelPart(int fd, std::string cmd);

@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 14:30:33 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/15 13:29:51 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/20 11:58:42 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,7 @@ Server::Server(char* port, std::string pswd, std::string name) : _name(name), _p
 		close(this->_serverfd);
 		exit(1);
 	}
-	this->_fds.push_back((pollfd){this->_serverfd, POLLIN, 0}); // fd, event, revents
+	this->_fds.push_back((pollfd){this->_serverfd, POLLIN, 0});
 	struct sigaction act;
 	act.sa_flags = 0;
 	act.sa_handler = Server::signalServer;
@@ -78,12 +78,6 @@ void Server::signalServer(int sig)
 	}
 }
 
-/*
- - Verification du port :
-  - Plages de 0 a 1023 : reserves au systeme
-  - Plages de 1024 a 43151 : applications mais utilisables
-  - Plages de 43152 a 65535 : utilisables pour tous les usages
- */
 int Server::verifInput(std::string port)
 {
 	if (port.size() < 3 || port.size() > 4 || port[0] == '-')
@@ -225,48 +219,74 @@ void Server::commandDispatcher(Client *clt, int i)
 	std::list<std::string>& clt_cmds = clt->getCmds();
 	for (std::list<std::string>::iterator it = clt_cmds.begin(); it != clt_cmds.end(); it ++)
 	{
-		if ((*it).find("PASS") == 0)
+		if (clt->getCreateStep() != 3)
 		{
-			if ((res = createClient(this->_fds[i].fd, (*it), 0)) < 0)
-				break;
+			if ((*it).find("PASS ") == 0)
+			{
+				if ((res = createClient(this->_fds[i].fd, (*it), 0)) < 0)
+					break;
+			}
+			else if ((*it).find("NICK ") == 0)
+			{
+				if ((res = createClient(this->_fds[i].fd, (*it), 1)) < 0)
+					break;
+			}
+			else if ((*it).find("USER ") == 0)
+			{
+				if ((res = createClient(this->_fds[i].fd, (*it), 2)) < 0)
+					break;
+			}
+			else
+				unkownCommand(clt, (*it));
 		}
-		else if ((*it).find("NICK") == 0)
+		else if (clt->getCreateStep() == 3)
 		{
-			if ((res = createClient(this->_fds[i].fd, (*it), 1)) < 0)
+			if ((*it).find("PING") == 0) 
+				serverPingPong(this->_fds[i].fd, true);
+			else if ((*it).find("PONG") == 0)
+				serverPingPong(this->_fds[i].fd, false);
+			else if ((*it).find("JOIN") == 0)
+				channelJoin(this->_fds[i].fd, (*it));
+			else if ((*it).find("INVITE") == 0)
+				channelInvite(this->_fds[i].fd, (*it));
+			else if ((*it).find("PRIVMSG") == 0)
+				msgBroadcast(this->_fds[i].fd, (*it));
+			else if ((*it).find("TOPIC") == 0)
+				channelTopic(this->_fds[i].fd, (*it));
+			else if ((*it).find("PART") == 0)
+				channelPart(this->_fds[i].fd, (*it));
+			else if ((*it).find("KICK") == 0)
+				channelKick(this->_fds[i].fd, (*it));
+			else if ((*it).find("MODE") == 0)
+				channelMode(this->_fds[i].fd, (*it));
+			else if ((*it).find("QUIT") == 0)
+			{
+				serverQuit(this->_fds[i].fd, (*it));
+				res = -1;
 				break;
-		}
-		else if ((*it).find("USER") == 0)
-		{
-			if ((res = createClient(this->_fds[i].fd, (*it), 2)) < 0)
-				break;
-		}
-		else if ((*it).find("PING") == 0) 
-			serverPingPong(this->_fds[i].fd, true);
-		else if ((*it).find("PONG") == 0)
-			serverPingPong(this->_fds[i].fd, false);
-		else if ((*it).find("JOIN") == 0)
-			channelJoin(this->_fds[i].fd, (*it));
-		else if ((*it).find("INVITE") == 0)
-			channelInvite(this->_fds[i].fd, (*it));
-		else if ((*it).find("PRIVMSG") == 0)
-			msgBroadcast(this->_fds[i].fd, (*it));
-		else if ((*it).find("TOPIC") == 0)
-			channelTopic(this->_fds[i].fd, (*it));
-		else if ((*it).find("PART") == 0)
-			channelPart(this->_fds[i].fd, (*it));
-		else if ((*it).find("KICK") == 0)
-			channelKick(this->_fds[i].fd, (*it));
-		else if ((*it).find("MODE") == 0)
-			channelMode(this->_fds[i].fd, (*it));
-		else if ((*it).find("QUIT") == 0)
-		{
-			serverQuit(this->_fds[i].fd, (*it));
-			res = -1;
-			break;
+			}
 		}
 	}
 	if (res >= 0)
 		clt->clearCmd();
+}
+
+void Server::unkownCommand(Client *clt, std::string cmd)
+{
+	std::string ts = ":"+this->_name+" ";
+	std::string cmd_sub = "";
+	size_t end_cmd = cmd.find(" ");
+	if (end_cmd == std::string::npos)
+		end_cmd = cmd.find("\r");
+	if (end_cmd == std::string::npos)
+		end_cmd = cmd.find("\n");
+	if (end_cmd != std::string::npos)
+		cmd_sub = cmd.substr(0, end_cmd);
+	if (clt->getNickname().size() != 0)
+		ts += clt->getNickname()+" 421 "+cmd_sub+" :Unknown command\r\n";
+	else
+		ts += "- 421 "+cmd_sub+" :Unknown command\r\n";
+	safeSend(clt->getFd(), ts);
 }
 
 int Server::createClient(int fd, std::string cmd, int step)
@@ -303,6 +323,12 @@ int Server::createClient(int fd, std::string cmd, int step)
 		if (clt->getNickname().size() == 0)
 		{
 			std::string ts = ":"+this->_name+" 431 "+clt->getNickname()+" "+clt->getNickname()+" :No nickname given\r\n";
+			safeSend(fd, ts);
+			clt->setCreateStep(-1);
+		}
+		else if (!this->isCorrectName(clt->getNickname(), false))
+		{	
+			std::string ts = ":"+this->_name+" 432 "+clt->getNickname()+" "+clt->getNickname()+" :Erroneous nickname\r\n";
 			safeSend(fd, ts);
 			clt->setCreateStep(-1);
 		}
@@ -376,6 +402,29 @@ bool Server::findDuplicata(Client *clt, std::string name)
 			return true;
 	}
 	return false;
+}
+
+bool Server::isCorrectName(std::string name, bool channel)
+{
+	char oc[9] = {'-', '[', ']', '\\', '`', '^', '{', '}', '|'};
+	size_t i = 0;
+	if (channel)
+		i++;
+	while (i < name.size())
+	{
+		if (!isalnum(name[i]))
+		{
+			for (size_t j = 0; j < 9; j++)
+			{
+				if (name[i] == oc[j])
+					continue;
+				else if (name[i] != oc[j] && j == 8)
+					return false;
+			}
+		}
+		i++;
+	}
+	return true;
 }
 
 void Server::serverPingPong(int fd, bool pingorpong)
@@ -501,6 +550,12 @@ void Server::channelJoin(int fd, std::string cmd)
 	}
 	std::cout<<GREY<<"Join Channel -- Step 1\n"<<"Channel name : ["<<ch_name<<"]\n"<<"Channel Key : ["+key+"]\n"<<RST;
 	Client* clt = findClient(fd);
+	if ((ch_name.size() <= 1 || !isCorrectName(ch_name, true)) && clt)
+	{
+		std::string ts = ":"+this->_name+" 476 "+clt->getNickname()+" "+ch_name+" :Bad Channel Mask\r\n";
+		safeSend(fd, ts);
+		return ;
+	}
 	Channel* ch = findChannel(ch_name);
 	if (clt && ch_name.size() == 0)
 	{

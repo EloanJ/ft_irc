@@ -6,7 +6,7 @@
 /*   By: vduarte <vduarte@student.42mulhouse.fr>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 12:56:59 by vduarte           #+#    #+#             */
-/*   Updated: 2026/01/15 13:34:31 by vduarte          ###   ########.fr       */
+/*   Updated: 2026/01/20 11:59:19 by vduarte          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -237,7 +237,7 @@ void Channel::modeChannel(Client *clt, std::string md, std::string tp)
 		else if (this->isOperator(clt))
 		{
 			std::cout<<"CLIENT IS OPERATOR"<<std::endl;
-			if (md.size() != 3) // limitation of 2 caracters par mode (+/-, itkol et \0)
+			if (md.size() != 3)
 			{
 				std::cout<<"MODE IS CORRECT"<<std::endl;
 				if (md.find('+') != std::string::npos && md.find('+') == 0)
