@@ -72,6 +72,7 @@ irssi -c localhost -p 6667 -w <password>
 | Login | GitHub |
 |-------|--------|
 | ejonsery | [@EloanJ](https://github.com/EloanJ) |
+| vduarte  | [@ValentinD17](https://github.com/ValentinD17) |
 
 ---
 
